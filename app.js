@@ -534,7 +534,7 @@ function popover(text, bad) {
   popTimer = setTimeout(() => { p.hidden = true; }, 1400);
 }
 
-FX.mount(ui.wrap);
+FX.mount();
 
 /* Звук у браузері не запуститься до першого жесту користувача */
 ['pointerdown', 'keydown'].forEach(ev =>
@@ -862,6 +862,7 @@ const pUI = {
   panelLearn: $('panelLearn'), panelPractice: $('panelPractice'),
   btnLearn: $('modeLearn'), btnPractice: $('modePractice'),
   streak: $('pStreak'), stars: $('pStars'), acc: $('pAcc'),
+  xpFill: $('xpFill'), xpLabel: $('xpLabel'),
   badges: $('badgesRow'), welcome: $('welcome'),
   wLearn: $('wLearn'), wPlay: $('wPlay')
 };
@@ -1236,6 +1237,12 @@ function renderScore() {
   set(pUI.streak, t.streak);
   set(pUI.stars, totalStars);
   set(pUI.acc, pct);
+
+  const maxStars = LEVELS.length * 3;
+  pUI.xpFill.style.width = Math.round(totalStars / maxStars * 100) + '%';
+  pUI.xpLabel.textContent = totalStars === maxStars
+    ? 'Усі зірки твої! 🏆'
+    : totalStars + ' / ' + maxStars + ' ⭐';
 }
 
 function renderBadges(justEarned) {

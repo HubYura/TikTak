@@ -7,28 +7,31 @@
 const FX = (function () {
   const COLORS = ['#f2a33c', '#4a9e57', '#3a7ca5', '#e05a45', '#f6b757', '#8e6fb5', '#7ff0c4'];
 
-  let canvas = null, c2d = null, host = null, raf = 0;
+  let canvas = null, c2d = null, raf = 0;
   let parts = [];
   const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  function mount(el) {
-    host = el;
+  /* Шар накриває все вікно, а не тільки сцену: кнопки відповідей живуть
+     у бічній панелі, і конфеті з них інакше народжувалося б за межами канви. */
+  function mount() {
     canvas = document.createElement('canvas');
     canvas.className = 'fx-layer';
-    host.appendChild(canvas);
+    document.body.appendChild(canvas);
     c2d = canvas.getContext('2d');
     resize();
     window.addEventListener('resize', resize);
   }
 
+  const W = () => window.innerWidth;
+  const H = () => window.innerHeight;
+
   function resize() {
-    if (!canvas || !host) return;
-    const r = host.getBoundingClientRect();
+    if (!canvas) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    canvas.width = Math.max(1, Math.round(r.width * dpr));
-    canvas.height = Math.max(1, Math.round(r.height * dpr));
-    canvas.style.width = r.width + 'px';
-    canvas.style.height = r.height + 'px';
+    canvas.width = Math.max(1, Math.round(W() * dpr));
+    canvas.height = Math.max(1, Math.round(H() * dpr));
+    canvas.style.width = W() + 'px';
+    canvas.style.height = H() + 'px';
     c2d.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
@@ -56,24 +59,21 @@ const FX = (function () {
 
   /** Салют згори через усю ширину — для рівня чи значка. */
   function cheer(n) {
-    if (!host) return;
-    const r = host.getBoundingClientRect();
     const shots = n || 5;
     for (let i = 0; i < shots; i++) {
-      setTimeout(() => burst(r.width * (i + 0.5) / shots, r.height * 0.28, 26, 7), i * 110);
+      setTimeout(() => burst(W() * (i + 0.5) / shots, H() * 0.3, 26, 7), i * 110);
     }
   }
 
   /** Салют із точки елемента — наприклад із кнопки правильної відповіді. */
   function fromElement(el, n) {
-    if (!host || !el) return;
-    const a = el.getBoundingClientRect(), b = host.getBoundingClientRect();
-    burst(a.left + a.width / 2 - b.left, a.top + a.height / 2 - b.top, n || 18, 5);
+    if (!el) return;
+    const a = el.getBoundingClientRect();
+    burst(a.left + a.width / 2, a.top + a.height / 2, n || 18, 5);
   }
 
   function loop() {
-    const r = host.getBoundingClientRect();
-    c2d.clearRect(0, 0, r.width, r.height);
+    c2d.clearRect(0, 0, W(), H());
 
     parts = parts.filter(p => {
       p.vy += 0.16;
@@ -82,7 +82,7 @@ const FX = (function () {
       p.y += p.vy;
       p.rot += p.vr;
       p.life -= p.fade;
-      if (p.life <= 0 || p.y > r.height + 40) return false;
+      if (p.life <= 0 || p.y > H() + 40) return false;
 
       c2d.save();
       c2d.globalAlpha = Math.max(0, Math.min(1, p.life));
@@ -95,11 +95,17 @@ const FX = (function () {
     });
 
     if (parts.length) raf = requestAnimationFrame(loop);
-    else { raf = 0; c2d.clearRect(0, 0, r.width, r.height); }
+    else { raf = 0; c2d.clearRect(0, 0, W(), H()); }
   }
 
-  /** Вібрація доступна не всюди й може бути заборонена політикою — тихо ігноруємо. */
+  /* До першого дотику браузер блокує вібрацію й пише помилку в консоль —
+     причому не через виняток, тож try/catch тут не рятує. Чекаємо на жест. */
+  let tapped = false;
+  ['pointerdown', 'keydown'].forEach(ev =>
+    window.addEventListener(ev, () => { tapped = true; }, { once: true, capture: true }));
+
   function buzz(pattern) {
+    if (!tapped) return;
     try { if (navigator.vibrate) navigator.vibrate(pattern); } catch (e) {}
   }
 
