@@ -1095,6 +1095,7 @@ function toSvg(evt) {
   return pt.matrixTransform(scene.getScreenCTM().inverse());
 }
 const angOf = (dx, dy) => (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+const angDist = (a, b) => { const d = Math.abs(a - b) % 360; return d > 180 ? 360 - d : d; };
 
 let dragMode = null, lastAng = 0;
 
@@ -1102,8 +1103,15 @@ grab.addEventListener('pointerdown', e => {
   if (mode !== 'practice' || !pTask || pTask.kind !== 'set' || pAnswered) return;
   const p = toSvg(e), dx = p.x - CX, dy = p.y - CY, r = Math.hypot(dx, dy);
   if (r > R + 8) return;
-  dragMode = r < 52 ? 'hour' : 'min';
-  lastAng = angOf(dx, dy);
+
+  const a = angOf(dx, dy);
+  // Довга стрілка проходить і через зону короткої, тож самого радіуса замало:
+  // ближче до центру вибираємо ту стрілку, до якої дитина справді потрапила.
+  const hourA = (pMin % 720) / 720 * 360;
+  const minA = (pMin % 60) * 6;
+  dragMode = r > 56 ? 'min'
+           : (angDist(a, hourA) <= angDist(a, minA) ? 'hour' : 'min');
+  lastAng = a;
   try { grab.setPointerCapture(e.pointerId); } catch (err) { /* не критично */ }
   grab.classList.add('dragging');
   e.preventDefault();
@@ -1112,7 +1120,6 @@ grab.addEventListener('pointerdown', e => {
 grab.addEventListener('pointermove', e => {
   if (!dragMode) return;
   const p = toSvg(e), a = angOf(p.x - CX, p.y - CY);
-  const snap = LEVELS[pLevel].snap;
 
   if (dragMode === 'min') {
     // Накопичуємо різницю кута, тож обертання переносить години —
@@ -1128,16 +1135,24 @@ grab.addEventListener('pointermove', e => {
     pRaw = (((hh % 12) + 12) % 12) * 60 + m;
   }
 
-  pMin = (Math.round(pRaw / snap) * snap) % 720;
+  // Під час перетягування стрілка йде за пальцем із кроком у хвилину.
+  // Якби тут застосовувався крок рівня (30 або навіть 60 хвилин),
+  // стрілка здавалася б намертво застряглою.
+  pMin = Math.round(pRaw) % 720;
   render();
 });
 
+/* Слухаємо на вікні, а не на колі: якщо захоплення вказівника не спрацювало,
+   палець може відірватись поза циферблатом — і перетягування зависло б. */
 ['pointerup', 'pointercancel'].forEach(ev =>
-  grab.addEventListener(ev, () => {
+  window.addEventListener(ev, () => {
     if (!dragMode) return;
     dragMode = null;
     grab.classList.remove('dragging');
-    pRaw = pMin;
+    // Прилипання до кроку рівня — уже після того, як дитина відпустила стрілку.
+    const snap = LEVELS[pLevel].snap;
+    pRaw = pMin = (Math.round(pMin / snap) * snap) % 720;
+    render();
   }));
 
 /* ---------- Перемикання режимів ---------- */
