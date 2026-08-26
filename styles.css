@@ -357,6 +357,9 @@ body {
 @media (max-width: 900px) {
   .stage { grid-template-columns: 1fr; }
   .panel { max-height: none; }
+  /* В одну колонку сцена не має з'їдати весь екран: SVG сам
+     впишеться в рамку, лишивши поля обабіч. */
+  #scene { max-height: 62vh; }
   .app { padding: 10px 10px 0; gap: 10px; }
 }
 

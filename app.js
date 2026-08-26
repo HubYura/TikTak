@@ -702,7 +702,11 @@ document.addEventListener('keydown', e => {
 /* На вузьких екранах підводимо «камеру» ближче до вежі,
    інакше циферблат стискається до нечитабельних 60 px. */
 function fitViewBox() {
-  scene.setAttribute('viewBox', window.innerWidth < 640 ? '240 0 420 500' : '0 0 900 620');
+  const w = window.innerWidth, h = window.innerHeight;
+  // Тільки для портретних вузьких екранів: у низькому альбомному вікні
+  // висока рамка витягла б сцену під панель керування.
+  const portrait = w < 640 && h > w * 1.15;
+  scene.setAttribute('viewBox', portrait ? '240 0 420 500' : '0 0 900 620');
 }
 window.addEventListener('resize', fitViewBox);
 fitViewBox();
