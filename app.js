@@ -11,7 +11,7 @@ const NS = 'http://www.w3.org/2000/svg';
 
 const OX = 450, OY = 470;          // центр ізометричної сітки
 const TW = 76,  TH = 38;           // ширина / висота плитки
-const CX = 450, CY = 178, R = 90;  // центр і радіус циферблата
+const CX = 450, CY = 192, R = 90;  // центр і радіус циферблата
 
 const iso = (i, j) => [OX + (i - j) * TW / 2, OY + (i + j) * TH / 2];
 const polar = (a, r) => [
@@ -237,6 +237,23 @@ function isoBlock(parent, x1, x2, yTop, yBot, depth, cFront, cSide, cTop) {
   poly([[x1, yTop], [x1 + depth, yTop - depth * 0.55], [x2 + depth, yTop - depth * 0.55], [x2, yTop]], cTop, parent);
 }
 
+/* Палітра сцени — соковита, з чіткою стороною світла */
+const C = {
+  grassTop: '#7cc356', grassAlt: '#6cb548', grassSide: '#4f8f33', grassDeep: '#3f7628',
+  pathTop:  '#f0d7a4', pathAlt:  '#e3c68d',
+  soil: '#8a5c34', soilDeep: '#563820',
+  wood: '#c08048', woodTop: '#dda068', woodSide: '#8f5a2e', woodDeep: '#6d4322',
+  stone: '#d6dde6', stoneTop: '#eef2f7', stoneSide: '#a3aebb',
+  roof: '#e8484f', roofLight: '#ff6b6b', roofSide: '#b0323a',
+  gold: '#ffc42e', goldDark: '#c48c00',
+  dial: '#fbfcff', dialRing: '#e9eef5', bezel: '#2a3442',
+  ink: '#1f2a37', tickMin: '#b9c3cf',
+  hourHand: '#ff5a5f', hourHandD: '#c03b41',
+  minHand: '#1aa7ff', minHandD: '#0f6ea9',
+  secHand: '#ffc42e',
+  leafA: '#5fae3f', leafB: '#7bc95a', leafC: '#94dd6f'
+};
+
 function buildScene() {
   const defs = el('defs');
 
@@ -253,150 +270,216 @@ function buildScene() {
      виставляє власний transform і затер би наш translate. */
   const gSun = group('gSun');
   const sunInner = el('g', {}, gSun);
-  const sunGlow = el('circle', { cx: 120, cy: 120, r: 38, fill: '#ffd76a', opacity: '.25' }, sunInner);
+  const sunGlow = el('circle', { cx: 120, cy: 120, r: 40, fill: '#ffd76a', opacity: '.28' }, sunInner);
   const sunBody = el('circle', { cx: 120, cy: 120, r: 26, fill: '#ffd76a' }, sunInner);
   regPart('sun', gSun);
 
-  /* Хмари */
+  /* Хмари — м'які низькополігональні шапки */
   const gClouds = group('gClouds');
   const cloudShapes = [];
-  [[130, 90, 1], [430, 62, .8], [700, 108, 1.15]].forEach(([x, y, s]) => {
+  [[130, 88, 1], [430, 60, .78], [700, 110, 1.18]].forEach(([x, y, s]) => {
     const c = el('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + s + ')' }, gClouds);
-    poly([[-46, 10], [-22, -14], [6, -20], [30, -6], [46, 10]], '#ffffff', c, { opacity: '.92' });
-    poly([[-46, 10], [46, 10], [34, 20], [-34, 20]], '#e4f1f8', c);
+    poly([[-48, 8], [-30, -12], [-6, -20], [18, -14], [40, 2], [48, 12]], '#ffffff', c);
+    poly([[-48, 8], [48, 12], [36, 22], [-34, 20]], '#dceaf3', c);
     cloudShapes.push({ node: c, x, y, s });
   });
   regPart('clouds', gClouds);
 
-  /* Земля — ізометричні плитки */
+  /* ---------- Земля: летючий острів ---------- */
+
   const gGround = group('gGround');
+
+  // Підземна частина — два схили, що сходяться в шпиль під островом
+  poly([[222, 470], [450, 584], [450, 706]], C.soil, gGround);
+  poly([[450, 584], [678, 470], [450, 706]], C.soilDeep, gGround);
+  // Смуга дерну по краю
+  poly([[222, 470], [450, 584], [450, 600], [222, 486]], C.grassSide, gGround);
+  poly([[450, 584], [678, 470], [678, 486], [450, 600]], C.grassDeep, gGround);
+
+  // Дрібні уламки, що летять поруч, — додають відчуття висоти
+  [[172, 545, 15], [726, 528, 12], [300, 640, 10]].forEach(([x, y, r]) => {
+    poly([[x - r, y], [x, y - r * .5], [x + r, y], [x, y + r * .5]], C.grassAlt, gGround);
+    poly([[x - r, y], [x, y + r * .5], [x, y + r * 1.6]], C.soil, gGround);
+    poly([[x, y + r * .5], [x + r, y], [x, y + r * 1.6]], C.soilDeep, gGround);
+  });
+
+  // Плитки поверхні
   const tiles = [];
   for (let s = -6; s <= 6; s++) {
     for (let i = -3; i <= 3; i++) {
       const j = s - i;
-      if (j < -3 || j > 3) continue;
-      tiles.push([i, j]);
+      if (j >= -3 && j <= 3) tiles.push([i, j]);
     }
   }
   tiles.forEach(([i, j]) => {
     const [x, y] = iso(i, j);
     const onPath = (i === 0 || j === 0);
     const alt = ((i + j) % 2 + 2) % 2;
-    const fill = onPath ? (alt ? '#e0bd88' : '#cda772') : (alt ? '#6fae4a' : '#5d9a3d');
+    const fill = onPath ? (alt ? C.pathTop : C.pathAlt) : (alt ? C.grassTop : C.grassAlt);
     poly([[x, y - TH / 2], [x + TW / 2, y], [x, y + TH / 2], [x - TW / 2, y]], fill, gGround);
-    // бічний зріз ґрунту по краю сітки
-    if (i === 3 || j === 3) {
-      poly([[x - TW / 2, y], [x, y + TH / 2], [x, y + TH / 2 + 16], [x - TW / 2, y + 16]], '#4f8534', gGround);
-      poly([[x, y + TH / 2], [x + TW / 2, y], [x + TW / 2, y + 16], [x, y + TH / 2 + 16]], '#43702c', gGround);
-    }
+  });
+
+  // Камінці на доріжці
+  [[-2, 0], [2, 0], [0, -2], [0, 2], [1.4, 0], [0, 1.4]].forEach(([i, j]) => {
+    const [x, y] = iso(i, j);
+    poly([[x - 7, y], [x, y - 3.5], [x + 7, y], [x, y + 3.5]], '#cbae7a', gGround);
   });
   regPart('ground', gGround);
 
   /* Тінь під вежею */
   const gShadow = group('gShadow');
-  el('ellipse', { cx: OX + 14, cy: OY + 6, rx: 122, ry: 34, fill: '#2f5a24', opacity: '.35' }, gShadow);
+  el('ellipse', { cx: OX + 10, cy: OY + 8, rx: 126, ry: 36, fill: '#2f5a24', opacity: '.32' }, gShadow);
   regPart('shadow', gShadow);
 
-  /* Декор парку: дерева, ліхтарі, каса */
+  /* ---------- Декор парку ---------- */
+
   const gScenery = group('gScenery');
-  const trees = [[-2.6, -2.6], [2.6, -2.4], [-2.5, 2.5], [2.7, 2.6], [-3, .1], [3, -.1]];
-  trees.forEach(([i, j]) => {
-    const [x, y] = iso(i, j);
-    poly([[x - 5, y], [x + 5, y], [x + 3, y - 22], [x - 3, y - 22]], '#7d4a2b', gScenery);
-    poly([[x - 24, y - 18], [x + 24, y - 18], [x, y - 54]], '#4f8534', gScenery);
-    poly([[x - 19, y - 32], [x + 19, y - 32], [x, y - 66]], '#6fae4a', gScenery);
-    poly([[x, y - 32], [x + 19, y - 32], [x, y - 66]], '#5d9a3d', gScenery);
-    poly([[x - 13, y - 46], [x + 13, y - 46], [x, y - 76]], '#7dbf57', gScenery);
-  });
+
+  /** Дерево з округлою кроною у три тони. */
+  function tree(x, y, s) {
+    const g = el('g', { transform: 'translate(' + x + ' ' + y + ') scale(' + s + ')' }, gScenery);
+    poly([[-6, 0], [6, 0], [4, -24], [-4, -24]], C.woodSide, g);
+    poly([[0, 0], [6, 0], [4, -24], [0, -24]], C.woodDeep, g);
+    // крона: три «шапки», кожна ширша знизу
+    const blob = (cy, w, h, col) =>
+      poly([[-w, cy], [-w * .72, cy - h * .62], [0, cy - h], [w * .72, cy - h * .62], [w, cy],
+            [w * .6, cy + h * .28], [-w * .6, cy + h * .28]], col, g);
+    blob(-20, 26, 30, C.leafA);
+    blob(-38, 21, 26, C.leafB);
+    blob(-54, 14, 20, C.leafC);
+  }
+  [[-2.6, -2.6, 1], [2.6, -2.4, .92], [-2.5, 2.5, 1.05], [2.7, 2.6, .95],
+   [-3, .2, .85], [3, -.2, .88], [-1.2, -3, .8], [1.3, 3, .82]]
+    .forEach(([i, j, s]) => { const [x, y] = iso(i, j); tree(x, y, s); });
+
+  // Ліхтарі
   [[-1.9, 1.9], [1.9, -1.9]].forEach(([i, j]) => {
     const [x, y] = iso(i, j);
-    poly([[x - 3, y], [x + 3, y], [x + 2, y - 40], [x - 2, y - 40]], '#5b6b77', gScenery);
-    poly([[x - 9, y - 40], [x + 9, y - 40], [x + 5, y - 54], [x - 5, y - 54]], '#ffd76a', gScenery);
+    poly([[x - 3, y], [x + 3, y], [x + 2, y - 42], [x - 2, y - 42]], '#5a6674', gScenery);
+    poly([[x - 10, y - 42], [x + 10, y - 42], [x + 6, y - 58], [x - 6, y - 58]], C.gold, gScenery);
+    el('circle', { cx: x, cy: y - 50, r: 13, fill: C.gold, opacity: '.22' }, gScenery);
+  });
+
+  // Кульки — трохи свята
+  [[-2.2, 1.1, '#ff5a5f'], [2.3, 1.4, '#1aa7ff'], [-1.1, -2.3, '#a45cff']].forEach(([i, j, col]) => {
+    const [x, y] = iso(i, j);
+    el('line', { x1: x, y1: y, x2: x + 4, y2: y - 46, stroke: '#3d4a57', 'stroke-width': 1.4 }, gScenery);
+    el('ellipse', { cx: x + 5, cy: y - 56, rx: 11, ry: 13, fill: col }, gScenery);
+    el('ellipse', { cx: x + 1, cy: y - 60, rx: 3.4, ry: 4.4, fill: '#fff', opacity: '.45' }, gScenery);
   });
   regPart('scenery', gScenery);
 
-  /* Вежа */
+  /* ---------- Вежа ---------- */
+
   const gPlinth = group('gPlinth');
-  isoBlock(gPlinth, 352, 548, 424, 472, 26, '#b9c2cc', '#8d99a6', '#d3dae1');
-  poly([[352, 424], [548, 424], [548, 434], [352, 434]], '#a3aeb9', gPlinth);
+  isoBlock(gPlinth, 352, 548, 424, 472, 26, C.stone, C.stoneSide, C.stoneTop);
+  poly([[352, 424], [548, 424], [548, 433], [352, 433]], '#c2cad4', gPlinth);
+  // сходинка спереду
+  poly([[404, 472], [496, 472], [496, 486], [404, 486]], C.stoneSide, gPlinth);
+  poly([[404, 472], [496, 472], [508, 466], [416, 466]], C.stone, gPlinth);
   regPart('plinth', gPlinth);
 
   const gShaft = group('gShaft');
-  isoBlock(gShaft, 386, 514, 262, 424, 22, '#a5673f', '#7d4a2b', '#c78a55');
-  for (let y = 286; y < 424; y += 34) {
-    poly([[386, y], [514, y], [514, y + 5], [386, y + 5]], '#8d552f', gShaft);
+  isoBlock(gShaft, 386, 514, 300, 424, 22, C.wood, C.woodSide, C.woodTop);
+  for (let y = 322; y < 424; y += 30) {
+    poly([[386, y], [514, y], [514, y + 4], [386, y + 4]], C.woodDeep, gShaft);
+    poly([[514, y], [536, y - 12], [536, y - 8], [514, y + 4]], '#5c3819', gShaft);
   }
+  // світлий кант зліва — напрямок світла
+  poly([[386, 300], [392, 300], [392, 424], [386, 424]], C.woodTop, gShaft);
   regPart('shaft', gShaft);
 
   const gHousing = group('gHousing');
-  isoBlock(gHousing, 330, 570, 84, 272, 24, '#c78a55', '#9a6335', '#e0a86d');
-  poly([[330, 258], [570, 258], [570, 272], [330, 272]], '#9a6335', gHousing);
+  isoBlock(gHousing, 330, 570, 78, 300, 24, C.wood, C.woodSide, C.woodTop);
+  poly([[330, 284], [570, 284], [570, 300], [330, 300]], C.woodSide, gHousing);
+  poly([[330, 78], [336, 78], [336, 300], [330, 300]], C.woodTop, gHousing);
+  // рамка навколо циферблата, як у справжніх баштових годинників
+  el('rect', { x: 342, y: 86, width: 216, height: 206, rx: 20,
+               fill: 'none', stroke: C.woodDeep, 'stroke-width': 6 }, gHousing);
+  // заклепки по кутах
+  [[356, 98], [544, 98], [356, 280], [544, 280]].forEach(([x, y]) =>
+    el('circle', { cx: x, cy: y, r: 4.5, fill: C.gold, stroke: C.goldDark, 'stroke-width': 1.5 }, gHousing));
   regPart('housing', gHousing);
 
+  /* Дах тримаємо вище за безель циферблата: інакше піддашок ліг би
+     просто на золоте кільце, бо циферблат малюється поверх даху. */
   const gRoof = group('gRoof');
-  poly([[318, 84], [582, 84], [450, 16]], '#c0392b', gRoof);
-  poly([[450, 16], [582, 84], [606, 71], [474, 8]], '#98291d', gRoof);
-  poly([[318, 84], [582, 84], [606, 71], [342, 71]], '#e05a45', gRoof);
+  poly([[306, 78], [594, 78], [450, 8]], C.roof, gRoof);
+  poly([[450, 8], [594, 78], [618, 70], [474, 0]], C.roofSide, gRoof);
+  poly([[306, 78], [594, 78], [618, 70], [330, 70]], C.roofLight, gRoof);
+  // піддашок
+  poly([[296, 78], [604, 78], [604, 90], [296, 90]], C.roofSide, gRoof);
+  poly([[296, 78], [604, 78], [616, 72], [308, 72]], C.roof, gRoof);
   regPart('roof', gRoof);
 
   const gBanner = group('gBanner');
-  poly([[449, 16], [453, 16], [453, -18], [449, -18]], '#7d4a2b', gBanner);
-  poly([[453, -18], [508, -8], [453, 2]], '#f2a33c', gBanner);
+  el('circle', { cx: 450, cy: 6, r: 5.5, fill: C.gold, stroke: C.goldDark, 'stroke-width': 1.5 }, gBanner);
+  poly([[456, 2], [500, 10], [456, 18]], C.gold, gBanner);
+  poly([[456, 10], [500, 10], [456, 18]], C.goldDark, gBanner);
   regPart('banner', gBanner);
 
-  /* Циферблат */
+  /* ---------- Циферблат ---------- */
+
   const face = group('face');
-  face.setAttribute('id', 'face');
 
   const gDial = group('fDial', face);
-  el('circle', { cx: CX, cy: CY, r: R + 9, fill: '#7d4a2b' }, gDial);
-  el('circle', { cx: CX, cy: CY, r: R + 4, fill: '#a5673f' }, gDial);
-  el('circle', { cx: CX, cy: CY, r: R, fill: '#fbf3e0' }, gDial);
-  el('circle', { cx: CX, cy: CY, r: R - 4, fill: 'none', stroke: '#ecdfc2', 'stroke-width': 2 }, gDial);
+  el('circle', { cx: CX, cy: CY, r: R + 9, fill: C.goldDark }, gDial);
+  el('circle', { cx: CX, cy: CY, r: R + 7, fill: C.gold }, gDial);
+  el('circle', { cx: CX, cy: CY, r: R + 4, fill: C.bezel }, gDial);
+  el('circle', { cx: CX, cy: CY, r: R, fill: C.dial }, gDial);
+  el('circle', { cx: CX, cy: CY, r: R - 20, fill: 'none', stroke: C.dialRing, 'stroke-width': 1.5 }, gDial);
+  // скляний відблиск угорі зліва
+  el('path', {
+    d: 'M ' + (CX - R * .82) + ' ' + (CY - R * .3) +
+       ' A ' + R + ' ' + R + ' 0 0 1 ' + (CX + R * .3) + ' ' + (CY - R * .82) +
+       ' A ' + (R * 1.5) + ' ' + (R * 1.5) + ' 0 0 0 ' + (CX - R * .82) + ' ' + (CY - R * .3) + ' Z',
+    fill: '#ffffff', opacity: '.3'
+  }, gDial);
   regPart('fDial', gDial);
 
   /* Чверті — чотири світлі сектори */
   const gQ = group('fQuarters', face);
-  const qCols = ['#f2a33c', '#4a9e57', '#3a7ca5', '#c0392b'];
+  const qCols = [C.gold, '#2fc172', C.minHand, C.hourHand];
   for (let q = 0; q < 4; q++) {
     const a0 = q * 90, a1 = a0 + 90;
     const [x0, y0] = polar(a0, R - 6), [x1, y1] = polar(a1, R - 6);
     el('path', {
       d: 'M ' + CX + ' ' + CY + ' L ' + x0 + ' ' + y0 + ' A ' + (R - 6) + ' ' + (R - 6) + ' 0 0 1 ' + x1 + ' ' + y1 + ' Z',
-      fill: qCols[q], opacity: '.13'
+      fill: qCols[q], opacity: '.16'
     }, gQ);
   }
   regPart('fQuarters', gQ);
 
-  /* Дрібні поділки (48 хвилинних) */
+  /* Дрібні поділки */
   const gTm = group('fTicksMin', face);
   const tmKids = [];
   for (let k = 0; k < 60; k++) {
     if (k % 5 === 0) continue;
     const a = k * 6;
-    const [x1, y1] = polar(a, R - 4), [x2, y2] = polar(a, R - 10);
-    const l = el('line', { x1, y1, x2, y2, stroke: '#8d99a6', 'stroke-width': 1.6, 'stroke-linecap': 'round', class: 'part' }, gTm);
-    tmKids.push(l);
+    const [x1, y1] = polar(a, R - 5), [x2, y2] = polar(a, R - 11);
+    tmKids.push(el('line', { x1, y1, x2, y2, stroke: C.tickMin, 'stroke-width': 2,
+                             'stroke-linecap': 'round', class: 'part' }, gTm));
   }
   regPart('fTicksMin', gTm, tmKids);
 
-  /* Годинні поділки (12 великих) */
+  /* Годинні поділки */
   const gTh = group('fTicksHour', face);
   const thKids = [];
   for (let k = 0; k < 12; k++) {
     const a = k * 30;
-    const [x1, y1] = polar(a, R - 3), [x2, y2] = polar(a, R - 16);
-    thKids.push(el('line', { x1, y1, x2, y2, stroke: '#2d3a4a', 'stroke-width': 4, 'stroke-linecap': 'round', class: 'part' }, gTh));
+    const [x1, y1] = polar(a, R - 4), [x2, y2] = polar(a, R - 17);
+    thKids.push(el('line', { x1, y1, x2, y2, stroke: C.ink, 'stroke-width': 5.5,
+                             'stroke-linecap': 'round', class: 'part' }, gTh));
   }
   regPart('fTicksHour', gTh, thKids);
 
-  /* Числа годин 1–12 */
+  /* Числа годин */
   const gNh = group('fNumsHour', face);
   const nhKids = [];
   for (let n = 1; n <= 12; n++) {
-    const [x, y] = polar(n * 30, R - 47);
+    const [x, y] = polar(n * 30, R - 48);
     const t = el('text', {
-      x, y, class: 'part', fill: '#2d3a4a', 'font-size': 25, 'font-weight': 700,
+      x, y, class: 'part', fill: C.ink, 'font-size': 28, 'font-weight': 700,
       'text-anchor': 'middle', 'dominant-baseline': 'central',
       'font-family': 'Fredoka, Segoe UI, sans-serif'
     }, gNh);
@@ -405,13 +488,13 @@ function buildScene() {
   }
   regPart('fNumsHour', gNh, nhKids);
 
-  /* Числа хвилин 05–60 */
+  /* Числа хвилин — того ж кольору, що й хвилинна стрілка */
   const gNm = group('fNumsMin', face);
   const nmKids = [];
   for (let n = 1; n <= 12; n++) {
-    const [x, y] = polar(n * 30, R - 25);
+    const [x, y] = polar(n * 30, R - 26);
     const t = el('text', {
-      x, y, class: 'part', fill: '#3a7ca5', 'font-size': 13, 'font-weight': 600,
+      x, y, class: 'part', fill: C.minHand, 'font-size': 13, 'font-weight': 600,
       'text-anchor': 'middle', 'dominant-baseline': 'central',
       'font-family': 'Fredoka, Segoe UI, sans-serif'
     }, gNm);
@@ -420,42 +503,54 @@ function buildScene() {
   }
   regPart('fNumsMin', gNm, nmKids);
 
-  /* Стрілки */
+  /* Стрілки: товсті, з темним контуром, щоб читалися поверх чисел */
+  const handShape = (len, halfW, tail) => [
+    [CX - halfW, CY + tail], [CX + halfW, CY + tail],
+    [CX + halfW * .55, CY - len + 10], [CX, CY - len], [CX - halfW * .55, CY - len + 10]
+  ];
+
   const gH = group('fHour', face);
   const hourHand = el('g', {}, gH);
-  poly([[CX - 6, CY + 12], [CX + 6, CY + 12], [CX + 4, CY - 42], [CX, CY - 50], [CX - 4, CY - 42]], '#c0392b', hourHand);
-  poly([[CX, CY + 12], [CX + 6, CY + 12], [CX + 4, CY - 42], [CX, CY - 50]], '#9c2c20', hourHand);
+  poly(handShape(46, 8, 14), C.hourHand, hourHand,
+       { stroke: C.hourHandD, 'stroke-width': 3, 'stroke-linejoin': 'round' });
   regPart('fHour', gH);
 
   const gM = group('fMin', face);
   const minHand = el('g', {}, gM);
-  poly([[CX - 4.5, CY + 16], [CX + 4.5, CY + 16], [CX + 3, CY - 68], [CX, CY - 76], [CX - 3, CY - 68]], '#1f3f68', minHand);
-  poly([[CX, CY + 16], [CX + 4.5, CY + 16], [CX + 3, CY - 68], [CX, CY - 76]], '#16304f', minHand);
+  poly(handShape(76, 6, 18), C.minHand, minHand,
+       { stroke: C.minHandD, 'stroke-width': 3, 'stroke-linejoin': 'round' });
   regPart('fMin', gM);
 
   const gS = group('fSec', face);
   const secHand = el('g', {}, gS);
-  el('line', { x1: CX, y1: CY + 20, x2: CX, y2: CY - 80, stroke: '#f39c12', 'stroke-width': 2.4, 'stroke-linecap': 'round' }, secHand);
-  el('circle', { cx: CX, cy: CY - 80, r: 4, fill: '#f39c12' }, secHand);
+  el('line', { x1: CX, y1: CY + 22, x2: CX, y2: CY - 82, stroke: C.bezel, 'stroke-width': 5,
+               'stroke-linecap': 'round' }, secHand);
+  el('line', { x1: CX, y1: CY + 22, x2: CX, y2: CY - 82, stroke: C.secHand, 'stroke-width': 2.4,
+               'stroke-linecap': 'round' }, secHand);
+  el('circle', { cx: CX, cy: CY - 82, r: 5, fill: C.secHand, stroke: C.bezel, 'stroke-width': 2 }, secHand);
   regPart('fSec', gS);
 
   const gHub = group('fHub', face);
-  el('circle', { cx: CX, cy: CY, r: 8, fill: '#2d3a4a' }, gHub);
-  el('circle', { cx: CX, cy: CY, r: 3.5, fill: '#fbf3e0' }, gHub);
+  el('circle', { cx: CX, cy: CY, r: 10, fill: C.bezel }, gHub);
+  el('circle', { cx: CX, cy: CY, r: 5, fill: C.gold }, gHub);
   regPart('fHub', gHub);
 
-  /* Відвідувачі парку */
+  /* ---------- Відвідувачі ---------- */
+
   const gPeeps = group('gPeeps');
   const peeps = [];
-  const peepCols = [['#e05a45', '#b8402f'], ['#3a7ca5', '#2b5f7f'], ['#4a9e57', '#347540'],
-                    ['#f2a33c', '#cf7f1c'], ['#8e6fb5', '#6e5292']];
+  const peepCols = [['#ff5a5f', '#c03b41'], ['#1aa7ff', '#0f6ea9'], ['#2fc172', '#1c7d49'],
+                    ['#ffc42e', '#c48c00'], ['#a45cff', '#6b32b5']];
   for (let p = 0; p < 5; p++) {
     const g = el('g', {}, gPeeps);
     const [c1, c2] = peepCols[p];
-    poly([[-6, 0], [6, 0], [4, -14], [-4, -14]], c1, g);
-    poly([[0, 0], [6, 0], [4, -14], [0, -14]], c2, g);
-    el('circle', { cx: 0, cy: -19, r: 5.5, fill: '#f6d3ae' }, g);
-    poly([[-6, -22], [6, -22], [0, -29]], c1, g);
+    el('ellipse', { cx: 0, cy: 1, rx: 8, ry: 3.4, fill: '#000', opacity: '.18' }, g);
+    poly([[-7, 0], [7, 0], [5, -15], [-5, -15]], c1, g);
+    poly([[0, 0], [7, 0], [5, -15], [0, -15]], c2, g);
+    el('circle', { cx: 0, cy: -21, r: 6.5, fill: '#f8d9b6' }, g);
+    poly([[-7, -24], [7, -24], [0, -33]], c1, g);
+    el('circle', { cx: -2.4, cy: -21, r: 1.1, fill: '#3d3026' }, g);
+    el('circle', { cx: 2.4, cy: -21, r: 1.1, fill: '#3d3026' }, g);
     peeps.push({ node: g, axis: p % 2, t: p / 5, speed: 0.055 + p * 0.014 });
   }
   regPart('peeps', gPeeps);
@@ -1449,7 +1544,7 @@ pUI.reset.addEventListener('click', () => {
 function fitViewBox() {
   // У практиці парк — лише тло: підводимо камеру впритул до циферблата,
   // інакше стрілку неможливо схопити пальцем.
-  if (mode === 'practice') { scene.setAttribute('viewBox', '300 50 300 230'); return; }
+  if (mode === 'practice') { scene.setAttribute('viewBox', '300 80 300 226'); return; }
 
   const w = window.innerWidth, h = window.innerHeight;
   // Тільки для портретних вузьких екранів: у низькому альбомному вікні
