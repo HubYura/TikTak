@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ЧасоПарк — вчимося читати годинник</title>
-<meta name="description" content="Інтерактивна симуляція для дітей початкової школи: будуємо годинникову вежу, крок за кроком вчимося читати аналоговий годинник і тренуємося на завданнях.">
-<meta name="theme-color" content="#2c5f7c">
+<meta name="description" content="Інтерактивна гра для дітей початкової школи: будуємо годинникову вежу, вчимося читати аналоговий годинник і тренуємося на рівнях із зірками.">
+<meta name="theme-color" content="#16303f">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%95%92%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,16 +19,22 @@
     <div class="logo"><span class="logo-mark">🎡</span> ЧасоПарк</div>
 
     <div class="modes" role="tablist" aria-label="Режим">
-      <button class="mode-btn is-active" id="modeLearn" type="button" role="tab" aria-selected="true">📚 Навчання</button>
-      <button class="mode-btn" id="modePractice" type="button" role="tab" aria-selected="false">🎯 Практика</button>
+      <button class="mode-btn is-active" id="modeLearn" type="button" role="tab" aria-selected="true">
+        <span aria-hidden="true">📚</span> Навчання
+      </button>
+      <button class="mode-btn" id="modePractice" type="button" role="tab" aria-selected="false">
+        <span aria-hidden="true">🎮</span> Гра
+      </button>
     </div>
+
+    <button class="icon-btn" id="btnSound" type="button" aria-label="Увімкнути або вимкнути звук">🔊</button>
 
     <nav class="rail" id="rail" aria-label="Етапи навчання"></nav>
   </header>
 
   <main class="stage">
 
-    <section class="scene-wrap">
+    <section class="scene-wrap" id="sceneWrap">
       <svg id="scene" viewBox="0 0 900 620" role="img" aria-labelledby="sceneTitle">
         <title id="sceneTitle">Ізометричний парк із годинниковою вежею</title>
       </svg>
@@ -39,9 +45,36 @@
       </div>
 
       <div class="badge" id="badge">Етап 1 / 11</div>
+      <div class="popover" id="popover" hidden></div>
     </section>
 
     <aside class="panel" id="panel">
+
+      <!-- Маскот -->
+      <div class="buddy" id="buddy" data-mood="idle">
+        <svg class="buddy-face" viewBox="0 0 72 78" aria-hidden="true">
+          <path d="M36 4 L36 14" stroke="#cf7f1c" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="36" cy="4" r="4" fill="#f6b757"/>
+          <circle cx="36" cy="44" r="30" fill="#f6b757" stroke="#cf7f1c" stroke-width="3"/>
+          <circle cx="36" cy="44" r="23" fill="#fdf5e2"/>
+          <g class="b-eyes">
+            <ellipse cx="28" cy="40" rx="3.6" ry="4.6" fill="#2b3a45"/>
+            <ellipse cx="44" cy="40" rx="3.6" ry="4.6" fill="#2b3a45"/>
+          </g>
+          <g class="b-eyes-happy">
+            <path d="M24 41 q4 -5 8 0" stroke="#2b3a45" stroke-width="3" fill="none" stroke-linecap="round"/>
+            <path d="M40 41 q4 -5 8 0" stroke="#2b3a45" stroke-width="3" fill="none" stroke-linecap="round"/>
+          </g>
+          <path class="b-mouth-idle" d="M30 53 q6 4 12 0" stroke="#2b3a45" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+          <path class="b-mouth-happy" d="M28 51 q8 9 16 0 q-8 4 -16 0" fill="#2b3a45"/>
+          <ellipse class="b-mouth-oops" cx="36" cy="54" rx="4" ry="5" fill="#2b3a45"/>
+          <g class="b-blush">
+            <circle cx="22" cy="50" r="3.4" fill="#e05a45" opacity=".35"/>
+            <circle cx="50" cy="50" r="3.4" fill="#e05a45" opacity=".35"/>
+          </g>
+        </svg>
+        <div class="buddy-say" id="buddySay">Привіт! Я Тік. Збудуймо годинникову вежу!</div>
+      </div>
 
       <!-- ===== Режим навчання ===== -->
       <div id="panelLearn">
@@ -67,8 +100,14 @@
         </div>
       </div>
 
-      <!-- ===== Режим практики ===== -->
+      <!-- ===== Режим гри ===== -->
       <div id="panelPractice" hidden>
+        <div class="scoreline">
+          <span class="score-pill" id="pStreak" title="Правильних поспіль">🔥 <b>0</b></span>
+          <span class="score-pill" id="pStars" title="Зібрано зірок">⭐ <b>0</b></span>
+          <span class="score-pill" id="pAcc" title="Влучність">🎯 <b>—</b></span>
+        </div>
+
         <div class="panel-head">
           <span class="chip" id="pChip">Рівень 1</span>
           <h2 id="pName">—</h2>
@@ -87,6 +126,9 @@
           <h3><span aria-hidden="true">🧭</span> Підказка рівня</h3>
           <p id="pTip"></p>
         </div>
+
+        <h3 class="section-label">Твої значки</h3>
+        <div class="badges" id="badgesRow"></div>
 
         <div class="stats" id="pStats"></div>
         <button class="linkbtn" id="btnResetProgress" type="button">Скинути прогрес</button>
@@ -123,7 +165,7 @@
     </div>
 
     <div class="ctrl-set" id="ctrlPractice" hidden>
-      <button class="btn btn-play" id="pCheck" type="button">Перевірити</button>
+      <button class="btn btn-play" id="pCheck" type="button">✓ Перевірити</button>
       <button class="btn" id="pDunno" type="button">Не знаю</button>
       <button class="btn btn-play" id="pNext" type="button" hidden>Далі ➜</button>
     </div>
@@ -131,6 +173,32 @@
   </footer>
 
 </div>
+
+<!-- Привітання під час першого запуску -->
+<div class="overlay" id="welcome" hidden>
+  <div class="sheet">
+    <svg class="welcome-face" viewBox="0 0 72 78" aria-hidden="true">
+      <path d="M36 4 L36 14" stroke="#cf7f1c" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="36" cy="4" r="4" fill="#f6b757"/>
+      <circle cx="36" cy="44" r="30" fill="#f6b757" stroke="#cf7f1c" stroke-width="3"/>
+      <circle cx="36" cy="44" r="23" fill="#fdf5e2"/>
+      <path d="M24 41 q4 -5 8 0" stroke="#2b3a45" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M40 41 q4 -5 8 0" stroke="#2b3a45" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M28 51 q8 9 16 0 q-8 4 -16 0" fill="#2b3a45"/>
+      <circle cx="22" cy="50" r="3.4" fill="#e05a45" opacity=".35"/>
+      <circle cx="50" cy="50" r="3.4" fill="#e05a45" opacity=".35"/>
+    </svg>
+    <h2>Привіт! Я Тік 👋</h2>
+    <p>Разом збудуємо годинникову вежу і навчимося читати справжній годинник зі стрілками.</p>
+    <div class="sheet-btns">
+      <button class="btn btn-play big" id="wLearn" type="button">📚 Вчитися</button>
+      <button class="btn big" id="wPlay" type="button">🎮 Одразу грати</button>
+    </div>
+  </div>
+</div>
+
+<script src="audio.js"></script>
+<script src="fx.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

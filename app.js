@@ -143,6 +143,38 @@ const STAGES = [
   }
 ];
 
+/* Коротка репліка Тіка на кожен етап */
+const STAGE_SAY = [
+  'Розчищаємо галявину! Обведи пальцем коло — завжди в один бік.',
+  'Вежа росте! Усередині сховається механізм.',
+  'Дивись: 12 угорі, 6 унизу, 3 праворуч, 9 ліворуч.',
+  'Коротка стрілка — це години. Вона найповільніша.',
+  'Довга робить ціле коло, а коротка — лише крок. Бачиш?',
+  'Стрілка внизу, на 6 — половина кола, 30 хвилин!',
+  'Ділимо коло на чотири частини. Це чверті.',
+  'Рахуємо п’ятірками: 5, 10, 15, 20…',
+  'Кожна дрібна рисочка — одна хвилинка.',
+  'Найшвидша стрілка! Порахуй до 60 разом зі мною.',
+  'Дивись, як небо змінюється: ранок, день, вечір, ніч.'
+];
+
+const PRAISE = ['Клас!', 'Супер!', 'Точно!', 'Молодець!', 'Так тримати!', 'Вау!', 'Легко!'];
+const PRAISE_SAY = [
+  'Оце так! Ти справжній годинникар.',
+  'Ідеально! Наступне буде ще цікавіше.',
+  'Так, саме так! Я в тебе вірив.',
+  'Чудово! Стрілки тебе слухаються.'
+];
+const CHEER_UP = ['Майже!', 'Ще трішки!', 'Буває!', 'Спробуймо ще!'];
+const CHEER_SAY = [
+  'Нічого страшного — помилки вчать найкраще.',
+  'Подивись на підказку й спробуй ще раз.',
+  'Я теж колись плутав стрілки. Далі вийде!',
+  'Ще одна спроба — і все вийде.'
+];
+
+const anyOf = a => a[Math.floor(Math.random() * a.length)];
+
 /* ---------- Українські назви часу ---------- */
 
 const ORD_NOM = ['дванадцята', 'перша', 'друга', 'третя', 'четверта', 'п’ята',
@@ -460,6 +492,7 @@ let speed = 1;
 let focusOn = true;
 let mode = 'learn';               // 'learn' | 'practice'
 let tm = 540, target = 540, acc = 0, stageT = 0, T = 0, last = 0;
+let tickFlip = false;
 
 const $ = id => document.getElementById(id);
 const ui = {
@@ -467,8 +500,65 @@ const ui = {
   desc: $('stDesc'), idea: $('stIdea'), warn: $('stWarn'), todo: $('stTry'),
   readout: $('readout'), digital: $('digital'), verbal: $('verbal'),
   play: $('btnPlay'), prev: $('btnPrev'), next: $('btnNext'), reset: $('btnReset'),
-  focus: $('tglFocus'), wrap: document.querySelector('.scene-wrap')
+  focus: $('tglFocus'), wrap: document.querySelector('.scene-wrap'),
+  buddy: $('buddy'), buddySay: $('buddySay'), pop: $('popover'), sound: $('btnSound')
 };
+
+/* ---------- Маскот і святкування ---------- */
+
+let buddyTimer = 0, popTimer = 0;
+
+/** Тік каже щось і на мить змінює вираз обличчя. */
+function say(text, mood, ms) {
+  if (text) ui.buddySay.textContent = text;
+  clearTimeout(buddyTimer);
+  // Перезапускаємо анімацію, навіть якщо настрій той самий
+  ui.buddy.dataset.mood = 'idle';
+  void ui.buddy.offsetWidth;
+  ui.buddy.dataset.mood = mood || 'idle';
+  if (mood && mood !== 'idle') {
+    buddyTimer = setTimeout(() => { ui.buddy.dataset.mood = 'idle'; }, ms || 2200);
+  }
+}
+
+/** Велика похвала просто поверх сцени. */
+function popover(text, bad) {
+  const p = ui.pop;
+  p.hidden = false;
+  p.className = 'popover' + (bad ? ' bad' : '');
+  p.textContent = text;
+  p.style.animation = 'none';
+  void p.offsetWidth;
+  p.style.animation = '';
+  clearTimeout(popTimer);
+  popTimer = setTimeout(() => { p.hidden = true; }, 1400);
+}
+
+FX.mount(ui.wrap);
+
+/* Звук у браузері не запуститься до першого жесту користувача */
+['pointerdown', 'keydown'].forEach(ev =>
+  window.addEventListener(ev, () => SFX.unlock(), { once: true }));
+
+/* Клацання на будь-якій кнопці, крім варіантів відповіді —
+   ті мають власні звуки правильно/неправильно */
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest('button');
+  if (b && !b.disabled && !b.classList.contains('opt')) SFX.tap();
+}, true);
+
+function paintSound() {
+  const on = SFX.isOn();
+  ui.sound.textContent = on ? '🔊' : '🔇';
+  ui.sound.classList.toggle('is-off', !on);
+  ui.sound.setAttribute('aria-pressed', String(on));
+}
+ui.sound.addEventListener('click', () => {
+  const on = SFX.toggle();
+  paintSound();
+  say(on ? 'Звук увімкнено!' : 'Тепер тихо.', 'happy', 1400);
+});
+paintSound();
 
 /* Рейка етапів */
 STAGES.forEach((_, i) => {
@@ -526,8 +616,16 @@ function applyFocus() {
 }
 
 function goTo(i) {
+  const moved = cur !== Math.max(0, Math.min(STAGES.length - 1, i));
   cur = Math.max(0, Math.min(STAGES.length - 1, i));
   const st = STAGES[cur];
+
+  if (mode === 'learn') {
+    // Перші три етапи — будівництво, там доречний глухий удар,
+    // далі просто легкий перехід.
+    if (cur <= 2) SFX.build(); else SFX.swipe();
+    say(STAGE_SAY[cur], moved ? 'happy' : 'idle', 1500);
+  }
 
   tm = target = st.start;
   acc = 0;
@@ -672,7 +770,13 @@ function frame(ts) {
       const r = st.rate * speed;
       if (st.snap) {
         acc += dt * r;
-        while (acc >= st.snap) { acc -= st.snap; target += st.snap; }
+        while (acc >= st.snap) {
+          acc -= st.snap;
+          target += st.snap;
+          // Цокаємо лише там, де крок не частіший за пів секунди,
+          // інакше на дрібних хвилинах це перетворюється на тріскотіння.
+          if (st.snap / r >= 0.5) { tickFlip = !tickFlip; tickFlip ? SFX.tick() : SFX.tock(); }
+        }
       } else {
         target += dt * r;
       }
@@ -740,6 +844,15 @@ const ROUND = 5;          // питань у раунді
 const PASS = 4;           // скільки треба, щоб відкрити наступний рівень
 const STORE = 'chasopark.progress.v1';
 
+const BADGES = [
+  { id: 'builder',  ico: '🏗️', nm: 'Будівничий', test: p => p.seen.length >= STAGES.length },
+  { id: 'sharp',    ico: '🎯', nm: 'Влучний',    test: p => p.totals.bestStreak >= 5 },
+  { id: 'fire',     ico: '🔥', nm: 'Вогонь',     test: p => p.totals.bestStreak >= 10 },
+  { id: 'explorer', ico: '🧭', nm: 'Мандрівник', test: p => p.unlocked >= LEVELS.length - 1 },
+  { id: 'starman',  ico: '🌟', nm: 'Зіркар',     test: p => p.levels.reduce((s, l) => s + l.stars, 0) >= 15 },
+  { id: 'owl',      ico: '🦉', nm: 'Нічна сова', test: p => p.seen.includes(STAGES.length - 1) }
+];
+
 const pUI = {
   chip: $('pChip'), name: $('pName'), levels: $('levels'), dots: $('qDots'),
   text: $('qText'), opts: $('qOpts'), fb: $('qFb'), tip: $('pTip'),
@@ -747,7 +860,10 @@ const pUI = {
   check: $('pCheck'), dunno: $('pDunno'), next: $('pNext'),
   setLearn: $('ctrlLearn'), setPractice: $('ctrlPractice'),
   panelLearn: $('panelLearn'), panelPractice: $('panelPractice'),
-  btnLearn: $('modeLearn'), btnPractice: $('modePractice')
+  btnLearn: $('modeLearn'), btnPractice: $('modePractice'),
+  streak: $('pStreak'), stars: $('pStars'), acc: $('pAcc'),
+  badges: $('badgesRow'), welcome: $('welcome'),
+  wLearn: $('wLearn'), wPlay: $('wPlay')
 };
 
 const blankProgress = () => ({
@@ -756,6 +872,8 @@ const blankProgress = () => ({
   level: 0,
   levels: LEVELS.map(() => ({ stars: 0, best: 0 })),
   seen: [],
+  badges: [],
+  welcomed: false,
   totals: { asked: 0, right: 0, streak: 0, bestStreak: 0 }
 });
 
@@ -768,6 +886,10 @@ function loadProgress() {
     const p = JSON.parse(raw);
     if (!p || p.v !== 1 || !Array.isArray(p.levels) || p.levels.length !== LEVELS.length) return null;
     if (!p.totals || !Array.isArray(p.seen)) return null;
+    // Поля, доданих пізніше, у старих записах немає — дописуємо їх,
+    // а не викидаємо весь прогрес дитини.
+    if (!Array.isArray(p.badges)) p.badges = [];
+    if (typeof p.welcomed !== 'boolean') p.welcomed = true;
     return p;
   } catch (e) { return null; }
 }
@@ -930,9 +1052,22 @@ function feedback(ok, html, title) {
   pUI.fb.innerHTML = '<b>' + (title || (ok ? '✅ Правильно!' : '❌ Не зовсім')) + '</b>' + html;
 }
 
-function finishTask(ok) {
+function finishTask(ok, srcEl) {
   if (pAnswered) return;
   pAnswered = true;
+
+  if (ok) {
+    SFX.correct();
+    FX.buzz(28);
+    popover(anyOf(PRAISE));
+    say(anyOf(PRAISE_SAY), 'cheer', 2400);
+    if (srcEl) FX.fromElement(srcEl, 22); else FX.cheer(2);
+  } else {
+    SFX.wrong();
+    FX.buzz([26, 60, 26]);
+    popover(anyOf(CHEER_UP), true);
+    say(anyOf(CHEER_SAY), 'oops', 2400);
+  }
 
   pRound.push(ok);
   progress.totals.asked++;
@@ -953,6 +1088,7 @@ function finishTask(ok) {
 
   renderDots();
   renderStats();
+  awardBadges();
 }
 
 function choose(o, btn) {
@@ -968,7 +1104,7 @@ function choose(o, btn) {
 
   feedback(ok, ok ? ' ' + digital(pTask.h, pTask.m) + ' — ' + sayTime(pTask.h, pTask.m)
                   : ' ' + explain(pTask, o));
-  finishTask(ok);
+  finishTask(ok, ok ? btn : null);
 }
 
 function checkHands() {
@@ -1033,10 +1169,23 @@ function finishRound() {
      : ' — потрібно ' + PASS + ' правильних, щоб рухатись далі. Спробуй ще раз.'),
     right >= PASS ? '🎉 Раунд завершено' : '💪 Раунд завершено');
 
+  if (right >= PASS) {
+    SFX.level();
+    FX.cheer(6);
+    FX.buzz([30, 50, 30, 50, 80]);
+    popover(unlockedNow ? '🎉 Новий рівень!' : '⭐'.repeat(Math.max(1, stars)));
+    say(unlockedNow ? 'Рівень «' + LEVELS[pLevel + 1].name + '» відкрито! Спробуємо?'
+                    : 'Раунд пройдено! Хочеш ще?', 'cheer', 3200);
+  } else {
+    SFX.star();
+    say('Ще один раунд — і рівень буде наш. Я поруч!', 'happy', 2600);
+  }
+
   pRound = [];
   renderLevels();
   renderDots();
   renderStats();
+  awardBadges();
 }
 
 function renderDots() {
@@ -1068,7 +1217,62 @@ function renderLevels() {
   pUI.tip.textContent = LEVELS[pLevel].tip;
 }
 
+function bump(el) {
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
+  setTimeout(() => el.classList.remove('bump'), 260);
+}
+
+function renderScore() {
+  const t = progress.totals;
+  const totalStars = progress.levels.reduce((s, l) => s + l.stars, 0);
+  const pct = t.asked ? Math.round(t.right / t.asked * 100) + '%' : '—';
+
+  const set = (pill, val) => {
+    const b = pill.querySelector('b');
+    if (b.textContent !== String(val)) { b.textContent = val; bump(pill); }
+  };
+  set(pUI.streak, t.streak);
+  set(pUI.stars, totalStars);
+  set(pUI.acc, pct);
+}
+
+function renderBadges(justEarned) {
+  pUI.badges.innerHTML = '';
+  BADGES.forEach(b => {
+    const got = progress.badges.includes(b.id);
+    const d = document.createElement('div');
+    d.className = 'badge-item' + (got ? ' earned' : '') +
+                  (justEarned && justEarned.includes(b.id) ? ' just' : '');
+    d.title = b.nm + (got ? ' — здобуто!' : ' — ще попереду');
+    d.innerHTML = '<span class="ico">' + b.ico + '</span><span class="nm">' + b.nm + '</span>';
+    pUI.badges.appendChild(d);
+  });
+}
+
+/** Нові значки святкуємо окремо — це найсильніша нагорода в грі. */
+function awardBadges() {
+  const fresh = BADGES.filter(b => !progress.badges.includes(b.id) && b.test(progress))
+                      .map(b => b.id);
+  if (!fresh.length) return;
+
+  progress.badges.push(...fresh);
+  saveProgress();
+  renderBadges(fresh);
+
+  const b = BADGES.find(x => x.id === fresh[0]);
+  setTimeout(() => {
+    SFX.badge();
+    FX.cheer(4);
+    FX.buzz([30, 40, 30, 40, 60]);
+    popover(b.ico + ' ' + b.nm);
+    say('Новий значок: «' + b.nm + '»! Ти крутий.', 'cheer', 3000);
+  }, 700);
+}
+
 function renderStats() {
+  renderScore();
   const t = progress.totals;
   const pct = t.asked ? Math.round(t.right / t.asked * 100) : 0;
   const totalStars = progress.levels.reduce((s, l) => s + l.stars, 0);
@@ -1084,6 +1288,7 @@ function startLevel() {
   renderLevels();
   renderDots();
   renderStats();
+  renderBadges();
   newTask();
 }
 
@@ -1138,7 +1343,10 @@ grab.addEventListener('pointermove', e => {
   // Під час перетягування стрілка йде за пальцем із кроком у хвилину.
   // Якби тут застосовувався крок рівня (30 або навіть 60 хвилин),
   // стрілка здавалася б намертво застряглою.
+  const before = pMin;
   pMin = Math.round(pRaw) % 720;
+  // Клацання на кожній перейденій хвилині — стрілка відчувається «зубчастою»
+  if (pMin !== before) { SFX.notch(); FX.buzz(6); }
   render();
 });
 
@@ -1186,7 +1394,7 @@ function setMode(m) {
   ui.rail.hidden = !learning;
   ui.badge.hidden = !learning;
 
-  fitViewBox();
+  fitScene();
 
   if (learning) {
     grab.style.display = 'none';
@@ -1197,8 +1405,22 @@ function setMode(m) {
     practiceReveal();
     ui.readout.hidden = true;
     startLevel();
+    say('Час гри! Обери відповідь або покрути стрілки.', 'happy', 2200);
   }
 }
+
+/* ---------- Привітання під час першого запуску ---------- */
+
+function closeWelcome(target) {
+  pUI.welcome.hidden = true;
+  progress.welcomed = true;
+  saveProgress();
+  SFX.unlock();
+  SFX.level();
+  setMode(target);
+}
+pUI.wLearn.addEventListener('click', () => closeWelcome('learn'));
+pUI.wPlay.addEventListener('click', () => closeWelcome('practice'));
 
 pUI.btnLearn.addEventListener('click', () => setMode('learn'));
 pUI.btnPractice.addEventListener('click', () => setMode('practice'));
@@ -1208,9 +1430,11 @@ pUI.next.addEventListener('click', nextTask);
 pUI.reset.addEventListener('click', () => {
   if (!confirm('Скинути весь прогрес — зірки, рівні та статистику?')) return;
   progress = blankProgress();
+  progress.welcomed = true;
   pLevel = 0;
   saveProgress();
   startLevel();
+  say('Починаємо з чистого аркуша!', 'happy', 2000);
 });
 
 /* На вузьких екранах підводимо «камеру» ближче до вежі,
@@ -1226,6 +1450,13 @@ function fitViewBox() {
   const portrait = w < 640 && h > w * 1.15;
   scene.setAttribute('viewBox', portrait ? '240 0 420 500' : '0 0 900 620');
 }
+
+/* Зміна рамки міняє висоту сцени, а події resize при цьому не буде —
+   тож шар конфеті доводиться переміряти вручну, вже після перерахунку. */
+function fitScene() {
+  fitViewBox();
+  requestAnimationFrame(() => FX.resize());
+}
 window.addEventListener('resize', fitViewBox);
 fitViewBox();
 
@@ -1233,5 +1464,8 @@ fitViewBox();
 
 applyReveal(-1);
 goTo(0);
+renderBadges();
 setPlaying(true);
 requestAnimationFrame(frame);
+
+if (!progress.welcomed) pUI.welcome.hidden = false;
