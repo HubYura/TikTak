@@ -1,0 +1,11 @@
+# IDE
+.idea/
+
+# Локальні налаштування Claude Code (містять абсолютні шляхи цієї машини)
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+node_modules/
