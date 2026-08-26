@@ -445,6 +445,11 @@ const world = el('g', { id: 'world' });
  'gHousing', 'gRoof', 'gBanner', 'face', 'gPeeps']
   .forEach(id => { const n = document.getElementById(id); if (n) world.appendChild(n); });
 
+/* Прозорий диск над циферблатом — за нього дитина крутить стрілки.
+   Самі деталі мають pointer-events:none, тож ловити вказівник нема чим. */
+const grab = el('circle', { id: 'grab', cx: CX, cy: CY, r: R + 8, fill: 'transparent' }, world);
+grab.style.display = 'none';
+
 /* ---------- Стан ---------- */
 
 const FACE_IDS = ['fDial', 'fQuarters', 'fTicksMin', 'fTicksHour', 'fNumsHour', 'fNumsMin', 'fHour', 'fMin', 'fSec', 'fHub'];
@@ -453,6 +458,7 @@ let cur = 0;
 let playing = false;
 let speed = 1;
 let focusOn = true;
+let mode = 'learn';               // 'learn' | 'practice'
 let tm = 540, target = 540, acc = 0, stageT = 0, T = 0, last = 0;
 
 const $ = id => document.getElementById(id);
@@ -481,8 +487,9 @@ function visibleIds(upTo) {
   return set;
 }
 
-function applyReveal(upTo) {
-  const vis = visibleIds(upTo);
+function applyReveal(upTo) { applyRevealSet(visibleIds(upTo)); }
+
+function applyRevealSet(vis) {
   Object.keys(parts).forEach(id => {
     const p = parts[id];
     const on = vis.has(id);
@@ -547,6 +554,8 @@ function goTo(i) {
   ui.prev.disabled = cur === 0;
   ui.next.disabled = cur === STAGES.length - 1;
 
+  if (!progress.seen.includes(cur)) { progress.seen.push(cur); saveProgress(); }
+
   if (!st.day) setSky(12);
   render();
 }
@@ -578,7 +587,8 @@ function setSky(h24) {
 
 function render() {
   const st = STAGES[cur];
-  const mins = ((tm % 1440) + 1440) % 1440;
+  const learning = mode === 'learn';
+  const mins = learning ? ((tm % 1440) + 1440) % 1440 : ((pMin % 720) + 720) % 720;
 
   const hAng = (mins % 720) / 720 * 360;
   const mAng = (mins % 60) * 6;
@@ -588,7 +598,7 @@ function render() {
   S.minHand.setAttribute('transform', 'rotate(' + mAng + ' ' + CX + ' ' + CY + ')');
   S.secHand.setAttribute('transform', 'rotate(' + sAng + ' ' + CX + ' ' + CY + ')');
 
-  if (st.time) {
+  if (learning && st.time) {
     const readMins = ((( st.snap ? target : tm) % 1440) + 1440) % 1440;
     const h24 = Math.floor(readMins / 60) % 24;
     const m = Math.floor(readMins % 60);
@@ -605,8 +615,15 @@ function render() {
     if (st.day) setSky(h24);
   }
 
+  /* У практиці показник відбиває те, що виставила дитина, а не відповідь */
+  if (!learning && pTask && pTask.kind === 'set') {
+    const h12 = Math.floor(mins / 60) === 0 ? 12 : Math.floor(mins / 60);
+    ui.digital.textContent = h12 + ':' + String(Math.floor(mins % 60)).padStart(2, '0');
+    ui.verbal.textContent = 'ти виставив(ла) так';
+  }
+
   /* Сонце / місяць */
-  if (st.day) {
+  if (learning && st.day) {
     const p = (mins - 360) / 720;
     if (p >= 0 && p <= 1) {
       S.sunBody.setAttribute('fill', '#ffd76a');
@@ -648,7 +665,7 @@ function frame(ts) {
 
   const st = STAGES[cur];
 
-  if (playing) {
+  if (playing && mode === 'learn') {
     stageT += dt * 1000 * speed;
 
     if (st.rate) {
@@ -668,8 +685,10 @@ function frame(ts) {
     }
   }
 
-  const k = st.snap ? 9 : 22;
-  tm += (target - tm) * (1 - Math.exp(-dt * k));
+  if (mode === 'learn') {
+    const k = st.snap ? 9 : 22;
+    tm += (target - tm) * (1 - Math.exp(-dt * k));
+  }
 
   render();
   requestAnimationFrame(frame);
@@ -692,6 +711,7 @@ document.querySelectorAll('[data-speed]').forEach(b => {
 ui.focus.addEventListener('change', () => { focusOn = ui.focus.checked; applyFocus(); });
 
 document.addEventListener('keydown', e => {
+  if (mode !== 'learn') return;
   if (e.target.matches('input, textarea')) return;
   if (e.key === 'ArrowRight') { goTo(cur + 1); e.preventDefault(); }
   else if (e.key === 'ArrowLeft') { goTo(cur - 1); e.preventDefault(); }
@@ -699,9 +719,492 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'r' || e.key === 'R' || e.key === 'к' || e.key === 'К') { goTo(0); setPlaying(false); }
 });
 
+/* ============================================================
+   ПРАКТИКА
+   ============================================================ */
+
+const LEVELS = [
+  { name: 'Цілі години',   mins: [0],                snap: 60,
+    tip: 'Довга стрілка завжди дивиться рівно на 12.' },
+  { name: 'Пів години',    mins: [0, 30],            snap: 30,
+    tip: 'Довга стрілка або на 12, або на 6. Пів — це 30 хвилин, не 50.' },
+  { name: 'Чверті',        mins: [0, 15, 30, 45],    snap: 15,
+    tip: 'На 3 — чверть минула, на 9 — чверть лишилася до наступної години.' },
+  { name: 'П’ятірками',    mins: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55], snap: 5,
+    tip: 'Дивись, на яке число вказує довга стрілка, і рахуй п’ятірками.' },
+  { name: 'Точні хвилини', mins: Array.from({ length: 60 }, (_, i) => i), snap: 1,
+    tip: 'Спершу знайди найближче число, потім дорахуй дрібні риски.' }
+];
+
+const ROUND = 5;          // питань у раунді
+const PASS = 4;           // скільки треба, щоб відкрити наступний рівень
+const STORE = 'chasopark.progress.v1';
+
+const pUI = {
+  chip: $('pChip'), name: $('pName'), levels: $('levels'), dots: $('qDots'),
+  text: $('qText'), opts: $('qOpts'), fb: $('qFb'), tip: $('pTip'),
+  stats: $('pStats'), reset: $('btnResetProgress'),
+  check: $('pCheck'), dunno: $('pDunno'), next: $('pNext'),
+  setLearn: $('ctrlLearn'), setPractice: $('ctrlPractice'),
+  panelLearn: $('panelLearn'), panelPractice: $('panelPractice'),
+  btnLearn: $('modeLearn'), btnPractice: $('modePractice')
+};
+
+const blankProgress = () => ({
+  v: 1,
+  unlocked: 0,
+  level: 0,
+  levels: LEVELS.map(() => ({ stars: 0, best: 0 })),
+  seen: [],
+  totals: { asked: 0, right: 0, streak: 0, bestStreak: 0 }
+});
+
+/* localStorage може кинути виняток (приватний режим, заблоковані дані сайту)
+   або містити дані старої версії — у всіх випадках просто працюємо без збереження. */
+function loadProgress() {
+  try {
+    const raw = localStorage.getItem(STORE);
+    if (!raw) return null;
+    const p = JSON.parse(raw);
+    if (!p || p.v !== 1 || !Array.isArray(p.levels) || p.levels.length !== LEVELS.length) return null;
+    if (!p.totals || !Array.isArray(p.seen)) return null;
+    return p;
+  } catch (e) { return null; }
+}
+function saveProgress() {
+  try { localStorage.setItem(STORE, JSON.stringify(progress)); } catch (e) { /* просто не зберігаємо */ }
+}
+
+let progress = loadProgress() || blankProgress();
+let pLevel = Math.min(progress.level || 0, progress.unlocked);
+let pTask = null;          // поточне питання
+let pRound = [];           // результати раунду
+let pAnswered = false;
+let pMin = 540;            // те, що показує циферблат у практиці (0..719)
+let pRaw = 540;            // необроблений кут перетягування
+
+const pad = n => String(n).padStart(2, '0');
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+const digital = (h, m) => h + ':' + pad(m);
+const norm12 = h => ((h - 1 + 12) % 12) + 1;
+
+/* ---------- Генерація питань ---------- */
+
+/** Відволікачі будуються з реальних дитячих помилок, а не навмання. */
+function readOptions(h, m) {
+  const seen = new Map();
+  const add = (hh, mm) => {
+    hh = norm12(hh); mm = ((mm % 60) + 60) % 60;
+    const key = digital(hh, mm);
+    if (!seen.has(key)) seen.set(key, { h: hh, m: mm, label: key });
+  };
+
+  add(h, m);                                        // правильна
+  if (m > 30) add(h + 1, m);                        // годинна вже біля наступного числа
+  if (m % 5 === 0) add(m === 0 ? 12 : m / 5, (h % 12) * 5);  // стрілки переплутані
+  if (m === 30) add(h, 50);                         // «пів» прочитане як 50
+  if (m === 15) add(h, 3);                          // число прочитане буквально
+  if (m === 45) add(h, 9);
+  for (let d = 5; seen.size < 4 && d < 60; d += 5) add(h, m + d);
+  for (let d = 1; seen.size < 4; d++) add(h, m + d);
+
+  return [...seen.values()].slice(0, 4);
+}
+
+function sayOptions(h, m) {
+  const seen = new Map();
+  const add = s => { if (s && !seen.has(s)) seen.set(s, { label: s }); };
+  const cur = h % 12, next = (h + 1) % 12;
+
+  add(sayTime(h, m));                               // правильна
+  if (m === 15) add('за чверть ' + ORD_NOM[next]);  // плутанина «на» / «за»
+  if (m === 45) add('чверть на ' + ORD_ACC[next]);
+  if (m === 30) add('пів на ' + ORD_ACC[cur]);      // пів на поточну замість наступної
+  if (m === 0)  add('рівно ' + ORD_NOM[next]);
+  add(sayTime(h + 1, m));
+  add(sayTime(h, (m + 30) % 60));
+  add(sayTime(h, (m + 15) % 60));
+  for (let d = 1; seen.size < 4 && d < 60; d++) add(sayTime(h, (m + d) % 60));
+
+  return [...seen.values()].slice(0, 4);
+}
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+function newTask() {
+  const L = LEVELS[pLevel];
+  const h = 1 + rnd(12);
+  const m = pick(L.mins);
+  const kind = pick(['read', 'say', 'set']);
+
+  pTask = { h, m, kind, total: (h % 12) * 60 + m };
+  pAnswered = false;
+
+  if (kind === 'set') {
+    // Стрілки стартують не з відповіді — інакше нічого робити.
+    const start = ((h % 12) * 60 + m + 150 + rnd(300)) % 720;
+    pRaw = pMin = (Math.round(start / L.snap) * L.snap) % 720;
+  } else {
+    pRaw = pMin = pTask.total;
+  }
+
+  renderTask();
+  render();
+}
+
+/* ---------- Відображення ---------- */
+
+function renderTask() {
+  const t = pTask;
+  pUI.fb.hidden = true;
+  pUI.next.hidden = true;
+  pUI.dunno.hidden = false;
+  pUI.check.hidden = t.kind !== 'set';
+  grab.style.display = t.kind === 'set' ? '' : 'none';
+  ui.readout.hidden = t.kind !== 'set';
+
+  pUI.opts.className = 'opts' + (t.kind === 'say' ? ' wordy' : '');
+  pUI.opts.innerHTML = '';
+
+  if (t.kind === 'set') {
+    pUI.text.innerHTML = 'Постав стрілки на <span class="target">' + digital(t.h, t.m) + '</span>' +
+      '<br><span style="font-weight:400;font-size:14px;color:#5b6b77">Тягни довгу стрілку за краєм циферблата, коротку — біля центру.</span>';
+    return;
+  }
+
+  const opts = shuffle(t.kind === 'read' ? readOptions(t.h, t.m) : sayOptions(t.h, t.m));
+  pUI.text.textContent = t.kind === 'read'
+    ? 'Котра година на вежі?'
+    : 'Як сказати цей час українською?';
+
+  opts.forEach(o => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    b.type = 'button';
+    b.textContent = o.label;
+    b.addEventListener('click', () => choose(o, b));
+    pUI.opts.appendChild(b);
+  });
+}
+
+function correctLabel(t) {
+  return t.kind === 'say' ? sayTime(t.h, t.m) : digital(t.h, t.m);
+}
+
+/** Пояснення прив'язане саме до тієї плутанини, яку припустила дитина. */
+function explain(t, chosen) {
+  const right = digital(t.h, t.m) + ' — ' + sayTime(t.h, t.m);
+
+  if (t.kind === 'read' && chosen) {
+    if (chosen.h === norm12(t.h + 1) && chosen.m === t.m && t.m > 30)
+      return 'Коротка стрілка вже майже дійшла до ' + norm12(t.h + 1) +
+             ', але година ще ' + t.h + '-та: читаємо те число, яке вона <b>вже пройшла</b>. Правильно: ' + right;
+    // Обидві половинки мають збігтися, інакше 3:03 хибно зарахується як «свап»
+    if (t.m % 5 === 0 && chosen.h === (t.m === 0 ? 12 : t.m / 5) && chosen.m === (t.h % 12) * 5)
+      return 'Стрілки переплутані. Коротка й товста — години, довга й тонка — хвилини. Правильно: ' + right;
+    if (t.m === 30 && chosen.m === 50)
+      return 'Пів години — це <b>30</b> хвилин, а не 50: коло ділиться на 60, а не на 100. Правильно: ' + right;
+    if (t.m === 15 && chosen.m === 3)
+      return 'Число 3 для довгої стрілки означає не 3 хвилини, а <b>15</b>: рахуй п’ятірками. Правильно: ' + right;
+  }
+
+  if (t.kind === 'say' && chosen) {
+    if (t.m === 45 && chosen.label.startsWith('чверть на'))
+      return 'Коли чверть уже <b>лишилася</b>, кажуть «за чверть» і називають годину, яка тільки настане. Правильно: ' + right;
+    if (t.m === 15 && chosen.label.startsWith('за чверть'))
+      return 'Коли чверть уже <b>минула</b>, кажуть «чверть на». Правильно: ' + right;
+    if (t.m === 30 && chosen.label.startsWith('пів на'))
+      return 'Пів на — це рух до <b>наступної</b> години. Правильно: ' + right;
+  }
+
+  return 'Правильна відповідь: ' + right;
+}
+
+function feedback(ok, html, title) {
+  pUI.fb.hidden = false;
+  pUI.fb.className = 'fb' + (ok ? '' : ' bad');
+  pUI.fb.innerHTML = '<b>' + (title || (ok ? '✅ Правильно!' : '❌ Не зовсім')) + '</b>' + html;
+}
+
+function finishTask(ok) {
+  if (pAnswered) return;
+  pAnswered = true;
+
+  pRound.push(ok);
+  progress.totals.asked++;
+  if (ok) {
+    progress.totals.right++;
+    progress.totals.streak++;
+    progress.totals.bestStreak = Math.max(progress.totals.bestStreak, progress.totals.streak);
+  } else {
+    progress.totals.streak = 0;
+  }
+  saveProgress();
+
+  pUI.dunno.hidden = true;
+  pUI.check.hidden = true;
+  pUI.next.hidden = false;
+  pUI.next.textContent = pRound.length >= ROUND ? 'Підсумок ➜' : 'Далі ➜';
+  grab.style.display = 'none';
+
+  renderDots();
+  renderStats();
+}
+
+function choose(o, btn) {
+  if (pAnswered) return;
+  const ok = o.label === correctLabel(pTask);
+
+  [...pUI.opts.children].forEach(b => {
+    b.disabled = true;
+    if (b.textContent === correctLabel(pTask)) b.classList.add('right');
+    else if (b === btn) b.classList.add('wrong');
+    else b.classList.add('faded');
+  });
+
+  feedback(ok, ok ? ' ' + digital(pTask.h, pTask.m) + ' — ' + sayTime(pTask.h, pTask.m)
+                  : ' ' + explain(pTask, o));
+  finishTask(ok);
+}
+
+function checkHands() {
+  if (pAnswered || !pTask || pTask.kind !== 'set') return;
+  const ok = Math.round(pMin) % 720 === pTask.total;
+  if (ok) {
+    feedback(true, ' Стрілки стоять правильно: ' + sayTime(pTask.h, pTask.m) + '.');
+  } else {
+    const got = Math.round(pMin) % 720;
+    const gh = Math.floor(got / 60) === 0 ? 12 : Math.floor(got / 60);
+    feedback(false, ' Ти поставив(ла) ' + digital(gh, got % 60) +
+      ', а треба ' + digital(pTask.h, pTask.m) + ' — ' + sayTime(pTask.h, pTask.m) + '.');
+    pRaw = pMin = pTask.total;   // показуємо правильне положення
+    render();
+  }
+  finishTask(ok);
+}
+
+function giveUp() {
+  if (pAnswered) return;
+  if (pTask.kind === 'set') { pRaw = pMin = pTask.total; render(); }
+  else [...pUI.opts.children].forEach(b => {
+    b.disabled = true;
+    b.classList.add(b.textContent === correctLabel(pTask) ? 'right' : 'faded');
+  });
+  feedback(false, ' ' + explain(pTask, null));
+  finishTask(false);
+}
+
+function nextTask() {
+  if (pRound.length >= ROUND) finishRound();
+  else newTask();
+}
+
+function finishRound() {
+  const right = pRound.filter(Boolean).length;
+  const stars = right >= 5 ? 3 : right >= 4 ? 2 : right >= 3 ? 1 : 0;
+  const rec = progress.levels[pLevel];
+  rec.stars = Math.max(rec.stars, stars);
+  rec.best = Math.max(rec.best, right);
+
+  let unlockedNow = false;
+  if (right >= PASS && pLevel === progress.unlocked && pLevel < LEVELS.length - 1) {
+    progress.unlocked = pLevel + 1;
+    unlockedNow = true;
+  }
+  saveProgress();
+
+  pUI.opts.innerHTML = '';
+  pUI.check.hidden = true;
+  pUI.dunno.hidden = true;
+  pUI.next.hidden = false;
+  pUI.next.textContent = 'Ще раунд ➜';
+  grab.style.display = 'none';
+  ui.readout.hidden = true;
+
+  pUI.text.textContent = 'Раунд завершено: ' + right + ' із ' + ROUND;
+  feedback(right >= PASS,
+    ' ' + '★'.repeat(stars) + '☆'.repeat(3 - stars) +
+    (unlockedNow ? ' — відкрито рівень «' + LEVELS[pLevel + 1].name + '»!'
+     : right >= PASS ? ' — чудова робота!'
+     : ' — потрібно ' + PASS + ' правильних, щоб рухатись далі. Спробуй ще раз.'),
+    right >= PASS ? '🎉 Раунд завершено' : '💪 Раунд завершено');
+
+  pRound = [];
+  renderLevels();
+  renderDots();
+  renderStats();
+}
+
+function renderDots() {
+  pUI.dots.innerHTML = '';
+  for (let i = 0; i < ROUND; i++) {
+    const d = document.createElement('span');
+    d.className = 'qdot' + (i < pRound.length ? (pRound[i] ? ' right' : ' wrong')
+                            : i === pRound.length ? ' now' : '');
+    pUI.dots.appendChild(d);
+  }
+}
+
+function renderLevels() {
+  pUI.levels.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const locked = i > progress.unlocked;
+    const st = progress.levels[i];
+    const b = document.createElement('button');
+    b.className = 'level-btn' + (i === pLevel ? ' is-active' : '');
+    b.type = 'button';
+    b.disabled = locked;
+    b.innerHTML = (locked ? '🔒 ' : '') + L.name +
+      ' <span class="stars">' + '★'.repeat(st.stars) + '☆'.repeat(3 - st.stars) + '</span>';
+    b.addEventListener('click', () => { pLevel = i; progress.level = i; saveProgress(); startLevel(); });
+    pUI.levels.appendChild(b);
+  });
+  pUI.chip.textContent = 'Рівень ' + (pLevel + 1) + ' / ' + LEVELS.length;
+  pUI.name.textContent = LEVELS[pLevel].name;
+  pUI.tip.textContent = LEVELS[pLevel].tip;
+}
+
+function renderStats() {
+  const t = progress.totals;
+  const pct = t.asked ? Math.round(t.right / t.asked * 100) : 0;
+  const totalStars = progress.levels.reduce((s, l) => s + l.stars, 0);
+  pUI.stats.innerHTML =
+    'Етапів уроку переглянуто: <b>' + progress.seen.length + ' / ' + STAGES.length + '</b><br>' +
+    'Відповідей: <b>' + t.asked + '</b>, правильних: <b>' + t.right + '</b> (' + pct + '%)<br>' +
+    'Найкраща серія поспіль: <b>' + t.bestStreak + '</b><br>' +
+    'Зірок зібрано: <b>' + totalStars + ' / ' + LEVELS.length * 3 + '</b>';
+}
+
+function startLevel() {
+  pRound = [];
+  renderLevels();
+  renderDots();
+  renderStats();
+  newTask();
+}
+
+/* ---------- Перетягування стрілок ---------- */
+
+function toSvg(evt) {
+  const pt = scene.createSVGPoint();
+  pt.x = evt.clientX; pt.y = evt.clientY;
+  return pt.matrixTransform(scene.getScreenCTM().inverse());
+}
+const angOf = (dx, dy) => (Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360;
+
+let dragMode = null, lastAng = 0;
+
+grab.addEventListener('pointerdown', e => {
+  if (mode !== 'practice' || !pTask || pTask.kind !== 'set' || pAnswered) return;
+  const p = toSvg(e), dx = p.x - CX, dy = p.y - CY, r = Math.hypot(dx, dy);
+  if (r > R + 8) return;
+  dragMode = r < 52 ? 'hour' : 'min';
+  lastAng = angOf(dx, dy);
+  try { grab.setPointerCapture(e.pointerId); } catch (err) { /* не критично */ }
+  grab.classList.add('dragging');
+  e.preventDefault();
+});
+
+grab.addEventListener('pointermove', e => {
+  if (!dragMode) return;
+  const p = toSvg(e), a = angOf(p.x - CX, p.y - CY);
+  const snap = LEVELS[pLevel].snap;
+
+  if (dragMode === 'min') {
+    // Накопичуємо різницю кута, тож обертання переносить години —
+    // як під час заведення справжнього годинника.
+    let d = a - lastAng;
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    pRaw = (pRaw + d / 6 + 720) % 720;
+    lastAng = a;
+  } else {
+    const m = pRaw % 60;
+    const hh = Math.round((a - m * 0.5) / 30);
+    pRaw = (((hh % 12) + 12) % 12) * 60 + m;
+  }
+
+  pMin = (Math.round(pRaw / snap) * snap) % 720;
+  render();
+});
+
+['pointerup', 'pointercancel'].forEach(ev =>
+  grab.addEventListener(ev, () => {
+    if (!dragMode) return;
+    dragMode = null;
+    grab.classList.remove('dragging');
+    pRaw = pMin;
+  }));
+
+/* ---------- Перемикання режимів ---------- */
+
+/** У практиці годинник має бути повним: без секундної стрілки,
+    без секторів чвертей і без приглушення деталей. */
+function practiceReveal() {
+  const all = new Set(Object.keys(parts));
+  ['fSec', 'fQuarters', 'sun'].forEach(id => all.delete(id));
+  applyRevealSet(all);
+  S.face.classList.remove('focus');
+  FACE_IDS.forEach(id => {
+    const p = parts[id];
+    if (p) { p.el.classList.remove('dim'); p.el.classList.remove('pulse'); }
+  });
+}
+
+function setMode(m) {
+  mode = m;
+  const learning = m === 'learn';
+
+  pUI.btnLearn.classList.toggle('is-active', learning);
+  pUI.btnPractice.classList.toggle('is-active', !learning);
+  pUI.btnLearn.setAttribute('aria-selected', String(learning));
+  pUI.btnPractice.setAttribute('aria-selected', String(!learning));
+
+  pUI.panelLearn.hidden = !learning;
+  pUI.panelPractice.hidden = learning;
+  pUI.setLearn.hidden = !learning;
+  pUI.setPractice.hidden = learning;
+  ui.rail.hidden = !learning;
+  ui.badge.hidden = !learning;
+
+  fitViewBox();
+
+  if (learning) {
+    grab.style.display = 'none';
+    goTo(cur);
+  } else {
+    setPlaying(false);
+    setSky(12);
+    practiceReveal();
+    ui.readout.hidden = true;
+    startLevel();
+  }
+}
+
+pUI.btnLearn.addEventListener('click', () => setMode('learn'));
+pUI.btnPractice.addEventListener('click', () => setMode('practice'));
+pUI.check.addEventListener('click', checkHands);
+pUI.dunno.addEventListener('click', giveUp);
+pUI.next.addEventListener('click', nextTask);
+pUI.reset.addEventListener('click', () => {
+  if (!confirm('Скинути весь прогрес — зірки, рівні та статистику?')) return;
+  progress = blankProgress();
+  pLevel = 0;
+  saveProgress();
+  startLevel();
+});
+
 /* На вузьких екранах підводимо «камеру» ближче до вежі,
    інакше циферблат стискається до нечитабельних 60 px. */
 function fitViewBox() {
+  // У практиці парк — лише тло: підводимо камеру впритул до циферблата,
+  // інакше стрілку неможливо схопити пальцем.
+  if (mode === 'practice') { scene.setAttribute('viewBox', '300 50 300 230'); return; }
+
   const w = window.innerWidth, h = window.innerHeight;
   // Тільки для портретних вузьких екранів: у низькому альбомному вікні
   // висока рамка витягла б сцену під панель керування.

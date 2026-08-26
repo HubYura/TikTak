@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ЧасоПарк — вчимося читати годинник</title>
-<meta name="description" content="Інтерактивна симуляція для дітей початкової школи: будуємо годинникову вежу й крок за кроком вчимося читати аналоговий годинник.">
+<meta name="description" content="Інтерактивна симуляція для дітей початкової школи: будуємо годинникову вежу, крок за кроком вчимося читати аналоговий годинник і тренуємося на завданнях.">
 <meta name="theme-color" content="#2c5f7c">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%95%92%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -17,6 +17,12 @@
 
   <header class="topbar">
     <div class="logo"><span class="logo-mark">🎡</span> ЧасоПарк</div>
+
+    <div class="modes" role="tablist" aria-label="Режим">
+      <button class="mode-btn is-active" id="modeLearn" type="button" role="tab" aria-selected="true">📚 Навчання</button>
+      <button class="mode-btn" id="modePractice" type="button" role="tab" aria-selected="false">🎯 Практика</button>
+    </div>
+
     <nav class="rail" id="rail" aria-label="Етапи навчання"></nav>
   </header>
 
@@ -36,52 +42,92 @@
     </section>
 
     <aside class="panel" id="panel">
-      <div class="panel-head">
-        <span class="chip" id="chip">Будівництво</span>
-        <h2 id="stTitle">—</h2>
-      </div>
-      <p class="desc" id="stDesc"></p>
 
-      <div class="card idea">
-        <h3><span aria-hidden="true">💡</span> Ключова ідея</h3>
-        <p id="stIdea"></p>
+      <!-- ===== Режим навчання ===== -->
+      <div id="panelLearn">
+        <div class="panel-head">
+          <span class="chip" id="chip">Будівництво</span>
+          <h2 id="stTitle">—</h2>
+        </div>
+        <p class="desc" id="stDesc"></p>
+
+        <div class="card idea">
+          <h3><span aria-hidden="true">💡</span> Ключова ідея</h3>
+          <p id="stIdea"></p>
+        </div>
+
+        <div class="card warn">
+          <h3><span aria-hidden="true">⚠️</span> Часта помилка</h3>
+          <p id="stWarn"></p>
+        </div>
+
+        <div class="card try">
+          <h3><span aria-hidden="true">🎯</span> Спробуй сам</h3>
+          <p id="stTry"></p>
+        </div>
       </div>
 
-      <div class="card warn">
-        <h3><span aria-hidden="true">⚠️</span> Часта помилка</h3>
-        <p id="stWarn"></p>
+      <!-- ===== Режим практики ===== -->
+      <div id="panelPractice" hidden>
+        <div class="panel-head">
+          <span class="chip" id="pChip">Рівень 1</span>
+          <h2 id="pName">—</h2>
+        </div>
+
+        <div class="levels" id="levels" role="group" aria-label="Рівні"></div>
+
+        <div class="quiz">
+          <div class="qdots" id="qDots" aria-label="Питання раунду"></div>
+          <p class="qtext" id="qText">—</p>
+          <div class="opts" id="qOpts"></div>
+          <div class="fb" id="qFb" hidden></div>
+        </div>
+
+        <div class="card try" id="pTipCard">
+          <h3><span aria-hidden="true">🧭</span> Підказка рівня</h3>
+          <p id="pTip"></p>
+        </div>
+
+        <div class="stats" id="pStats"></div>
+        <button class="linkbtn" id="btnResetProgress" type="button">Скинути прогрес</button>
       </div>
 
-      <div class="card try" id="tryCard">
-        <h3><span aria-hidden="true">🎯</span> Спробуй сам</h3>
-        <p id="stTry"></p>
-      </div>
     </aside>
 
   </main>
 
   <footer class="controls">
-    <div class="ctrl-group">
-      <button class="btn" id="btnPrev" type="button" title="Попередній етап (←)" aria-label="Попередній етап">⏮</button>
-      <button class="btn btn-play" id="btnPlay" type="button" title="Пуск / пауза (пробіл)" aria-label="Пуск або пауза">▶</button>
-      <button class="btn" id="btnNext" type="button" title="Наступний етап (→)" aria-label="Наступний етап">⏭</button>
-      <button class="btn" id="btnReset" type="button" title="Спочатку (R)" aria-label="Почати спочатку">↻</button>
+
+    <div class="ctrl-set" id="ctrlLearn">
+      <div class="ctrl-group">
+        <button class="btn" id="btnPrev" type="button" title="Попередній етап (←)" aria-label="Попередній етап">⏮</button>
+        <button class="btn btn-play" id="btnPlay" type="button" title="Пуск / пауза (пробіл)" aria-label="Пуск або пауза">▶</button>
+        <button class="btn" id="btnNext" type="button" title="Наступний етап (→)" aria-label="Наступний етап">⏭</button>
+        <button class="btn" id="btnReset" type="button" title="Спочатку (R)" aria-label="Почати спочатку">↻</button>
+      </div>
+
+      <div class="ctrl-group speeds" role="group" aria-label="Швидкість анімації">
+        <span class="ctrl-label">Швидкість</span>
+        <button class="btn btn-sm" data-speed="0.5" type="button">0.5×</button>
+        <button class="btn btn-sm is-active" data-speed="1" type="button">1×</button>
+        <button class="btn btn-sm" data-speed="2" type="button">2×</button>
+      </div>
+
+      <div class="ctrl-group">
+        <label class="switch">
+          <input type="checkbox" id="tglFocus" checked>
+          <span class="switch-track"><span class="switch-knob"></span></span>
+          <span class="ctrl-label">Підсвітка</span>
+        </label>
+      </div>
     </div>
 
-    <div class="ctrl-group speeds" role="group" aria-label="Швидкість анімації">
-      <span class="ctrl-label">Швидкість</span>
-      <button class="btn btn-sm" data-speed="0.5" type="button">0.5×</button>
-      <button class="btn btn-sm is-active" data-speed="1" type="button">1×</button>
-      <button class="btn btn-sm" data-speed="2" type="button">2×</button>
+    <div class="ctrl-set" id="ctrlPractice" hidden>
+      <button class="btn btn-play" id="pCheck" type="button">Перевірити</button>
+      <button class="btn" id="pDunno" type="button">Не знаю</button>
+      <button class="btn btn-play" id="pNext" type="button" hidden>Далі ➜</button>
     </div>
 
-    <div class="ctrl-group">
-      <label class="switch">
-        <input type="checkbox" id="tglFocus" checked>
-        <span class="switch-track"><span class="switch-knob"></span></span>
-        <span class="ctrl-label">Підсвітка</span>
-      </label>
-    </div>
   </footer>
 
 </div>
