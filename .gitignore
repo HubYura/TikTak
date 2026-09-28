@@ -15,3 +15,6 @@ dist/
 dev-dist/
 .env
 .env.local
+
+# Рендери відео (важкі, викладаються у сховище, не в git)
+video/out/

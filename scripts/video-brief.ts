@@ -3,6 +3,7 @@
    Запуск: npm run video:brief */
 
 import { writeFileSync } from 'node:fs';
+import { MOTION, partsOf, sentences } from '../src/core/video-beats.ts';
 import { INTRO, PARENTS, STAGE_VIDEOS, TRAP_VIDEOS, type VideoClip } from '../src/core/videos.ts';
 
 const words = (s: string) => s.split(/\s+/).length;
@@ -48,4 +49,9 @@ writeFileSync('docs/video/STORYBOARD.md', md);
 writeFileSync('docs/video/manifest.example.json', JSON.stringify({
   clips: Object.fromEntries(all.map(c => [c.id, { src: c.id + '.mp4', poster: c.id + '.jpg' }]))
 }, null, 2) + '\n');
+// Вхід для локального конвеєра: Piper (озвучка) → Blender (рендер) → Higgsfield (стилізація)
+writeFileSync('video/clips.json', JSON.stringify(all.map(c => ({
+  id: c.id, title: c.title, say: c.say, shot: c.shot, sentences: sentences(c.say),
+  ...MOTION[c.id], parts: partsOf(MOTION[c.id])
+})), null, 2) + '\n');
 console.log(`STORYBOARD.md: ${all.length} кліпів, ≈${Math.round(total / 60)} хв`);

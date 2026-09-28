@@ -38,3 +38,23 @@ describe('parseManifest', () => {
     expect(parseManifest({ clips: 5 }, 'https://x/').size).toBe(0);
   });
 });
+
+import { MOTION, sentences } from '../src/core/video-beats';
+
+describe('партитура руху', () => {
+  it('кожен кліп має біт на кожне речення й коректний час', () => {
+    const t = /^([01]?\d|2[0-3]):[0-5]\d$/;
+    for (const v of ALL_VIDEOS) {
+      const m = MOTION[v.id];
+      expect(m, v.id).toBeDefined();
+      expect(m.beats.length, v.id + ': ' + sentences(v.say).join(' | ')).toBe(sentences(v.say).length);
+      expect(m.start).toMatch(t);
+      for (const b of m.beats) {
+        if (b.clock) expect(b.clock).toMatch(t);
+        expect(b.clock && b.turn).toBeFalsy();
+        if (b.label) expect(b.label).not.toMatch(/\p{Extended_Pictographic}/u);
+      }
+    }
+    expect(Object.keys(MOTION).sort()).toEqual(ALL_VIDEOS.map(v => v.id).sort());
+  });
+});

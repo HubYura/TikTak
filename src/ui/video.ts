@@ -1,5 +1,6 @@
 /* Вікно відеопояснення. Субтитри будуються зі сценарію, якщо окремого .vtt немає. */
 
+import { sentences } from '../core/video-beats';
 import type { VideoClip } from '../core/videos';
 import { SFX } from '../lib/audio';
 import { Videos } from '../lib/video';
@@ -27,7 +28,7 @@ function scriptCues(video: HTMLVideoElement, text: string): void {
   const add = () => {
     const d = video.duration;
     if (!Number.isFinite(d) || d <= 0 || typeof VTTCue === 'undefined') return;
-    const parts = text.match(/[^.!?]+[.!?]*/g)?.map(s => s.trim()).filter(Boolean) || [text];
+    const parts = sentences(text);
     const total = parts.reduce((s, p) => s + p.length, 0);
     const track = video.addTextTrack('subtitles', 'Українська', 'uk');
     let t = 0;
