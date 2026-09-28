@@ -49,7 +49,7 @@ writeFileSync('docs/video/STORYBOARD.md', md);
 writeFileSync('docs/video/manifest.example.json', JSON.stringify({
   clips: Object.fromEntries(all.map(c => [c.id, { src: c.id + '.mp4', poster: c.id + '.jpg' }]))
 }, null, 2) + '\n');
-// Вхід для локального конвеєра: Piper (озвучка) → Blender (рендер) → Higgsfield (стилізація)
+// Вхід для локального конвеєра: Piper (озвучка) → Blender (рендер)
 writeFileSync('video/clips.json', JSON.stringify(all.map(c => ({
   id: c.id, title: c.title, say: c.say, shot: c.shot, sentences: sentences(c.say),
   ...MOTION[c.id], parts: partsOf(MOTION[c.id])

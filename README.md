@@ -246,7 +246,7 @@ tests/         48 тестів: усі 720 значень часу, пастки
 - Сценарії й описи кадрів — у [src/core/videos.ts](src/core/videos.ts); з них
   `npm run video:brief` генерує бриф [docs/video/STORYBOARD.md](docs/video/STORYBOARD.md)
   і шаблон маніфесту. Референси персонажа й світу — у [docs/video/reference](docs/video/reference).
-- Кліпи генеруються окремо (Higgsfield) і **не лежать у репозиторії**: їх викладають
+- Кліпи рендерить локальний конвеєр Piper + Blender ([video/README.md](video/README.md)) і **не лежать у репозиторії**: їх викладають
   у сховище з `manifest.json`, а адресу задають у `VITE_VIDEO_BASE` (див. `.env.example`).
 - Кнопка «▶ Відео» з'являється лише для кліпів, які вже є в маніфесті, тож їх можна
   додавати поступово. Без мережі кнопок просто немає — гра працює як раніше.
