@@ -42,17 +42,41 @@ const TRAP_RECIPE: Partial<Record<Trap, { kinds: TaskKind[]; ok: (m: number) => 
   halfCur:    { kinds: ['say'],         ok: m => m === 30 }
 };
 
+/** Що вже було нещодавно — щоб питання не повторювались. */
+export interface Recent { h: number; m: number; kind: TaskKind }
+
+/** Той самий час у кількох останніх питаннях або той самий тип тричі поспіль — надто схоже. */
+export function tooSimilar(t: Recent, recent: Recent[]): boolean {
+  const last = recent.slice(-4);
+  if (last.some(x => x.h === t.h && x.m === t.m)) return true;
+  const two = recent.slice(-2);
+  if (two.length === 2 && two.every(x => x.kind === t.kind)) return true;
+  const one = recent[recent.length - 1];
+  return !!one && one.m === t.m && one.kind === t.kind;
+}
+
+/* Помилку повторюємо іншим способом: читав годинник — тепер став стрілки, і навпаки.
+   Так це повтор думки, а не завчена відповідь. */
+const REVIEW_SWAP: Record<TaskKind, TaskKind> = { read: 'set', set: 'read', say: 'say' };
+
 export function planTask(
-  p: Progress, level: number, levelMins: number[][], r: Rng = Math.random
+  p: Progress, level: number, levelMins: number[][], r: Rng = Math.random, recent: Recent[] = []
 ): Plan {
   const asked = p.totals.asked;
 
-  // 1. Повтор помилки, якщо настав її час
+  // 1. Повтор помилки, якщо настав її час (правила схожості його не стосуються)
   const dueIdx = p.review.findIndex(x => x.due <= asked && x.level <= level);
   if (dueIdx >= 0 && r() < 0.7) {
     const it = p.review[dueIdx];
-    return { h: it.h, m: it.m, kind: it.kind, level: it.level, reason: 'review' };
+    return { h: it.h, m: it.m, kind: REVIEW_SWAP[it.kind], level: it.level, reason: 'review' };
   }
+
+  let plan = planFresh(p, level, levelMins, r, recent);
+  for (let i = 0; i < 20 && tooSimilar(plan, recent); i++) plan = planFresh(p, level, levelMins, r, recent);
+  return plan;
+}
+
+function planFresh(p: Progress, level: number, levelMins: number[][], r: Rng, recent: Recent[]): Plan {
 
   const mins = levelMins[level];
   let h = 1 + rnd(12, r);
@@ -65,7 +89,9 @@ export function planTask(
     .filter(c => p.traps[c.t].seen >= 2 && mins.some(c.rc.ok))
     .sort((a, b) => b.w - a.w);
   const top = candidates[0];
-  if (top && r() < Math.min(0.6, top.w * 1.4)) {
+  // Прицільне — не двічі поспіль, щоб раунд не складався з однієї пастки
+  const lastFocus = recent.length > 0 && TRAP_RECIPE[top?.t as Trap]?.ok(recent[recent.length - 1].m);
+  if (top && !lastFocus && r() < Math.min(0.6, top.w * 1.4)) {
     const m = pick(mins.filter(top.rc.ok), r);
     if (top.t === 'swap' && m !== 0 && (h % 12) === m / 5) h = (h % 12) + 1;
     return { h, m, kind: pick(top.rc.kinds, r), level, reason: 'focus', focus: top.t };
@@ -82,7 +108,8 @@ export function planTask(
 
 /** Після відповіді: помилка стає в чергу на повтор, виправлена — виходить із неї. */
 export function scheduleReview(p: Progress, plan: Plan, ok: boolean): boolean {
-  const i = p.review.findIndex(x => x.h === plan.h && x.m === plan.m && x.kind === plan.kind);
+  // За часом, а не за типом: повтор іде іншим типом завдання
+  const i = p.review.findIndex(x => x.h === plan.h && x.m === plan.m);
   let fixed = false;
   if (ok && i >= 0) { p.review.splice(i, 1); fixed = true; }
   if (!ok) {

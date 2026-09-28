@@ -1,6 +1,8 @@
 /* Навчальний зміст: етапи уроку, рівні, значки, атракціони парку. */
 
-import type { Progress } from './progress';
+import type { AdventureId, Progress } from './progress';
+
+export type { AdventureId };
 
 export interface Stage {
   chip: string; title: string; desc: string; idea: string; warn: string; todo: string;
@@ -175,7 +177,6 @@ export const LEVELS: Level[] = [
     tip: 'Спершу знайди найближче число, потім дорахуй дрібні риски.' }
 ];
 
-export type AdventureId = 'routine' | 'elapsed';
 
 export interface Adventure { id: AdventureId; ico: string; name: string; needs: number; tip: string }
 
@@ -184,7 +185,11 @@ export const ADVENTURES: Adventure[] = [
   { id: 'routine', ico: '🗓️', name: 'Розпорядок дня', needs: 1,
     tip: 'Стрілки о 7 ранку й о 7 вечора стоять однаково. Дивись на небо!' },
   { id: 'elapsed', ico: '⏳', name: 'Скільки минуло?', needs: 3,
-    tip: 'Крути довгу стрілку вперед. Пройшла 12 — година стала наступною.' }
+    tip: 'Крути довгу стрілку вперед. Пройшла 12 — година стала наступною.' },
+  { id: 'feel', ico: '⏱️', name: 'Скільки триває хвилина?', needs: 1,
+    tip: 'Рахуй не поспішаючи: «двадцять один, двадцять два…» — кожне число приблизно секунда.' },
+  { id: 'faces', ico: '🕰️', name: 'Справжні годинники', needs: 2,
+    tip: 'Без кольорів і підказок: коротка стрілка — години, довга — хвилини. Хвилини рахуй п’ятірками.' }
 ];
 
 export const ROUND = 5;
@@ -208,7 +213,9 @@ export const BADGES: Badge[] = [
   { id: 'owl',      ico: '🦉', nm: 'Нічна сова', hint: 'Переглянь етап про добу', test: p => p.seen.includes(STAGES.length - 1) },
   { id: 'fixer',    ico: '🩹', nm: 'Виправлялко', hint: 'Виправ 5 своїх помилок', test: p => p.totals.fixed >= 5 },
   { id: 'day',      ico: '🗓️', nm: 'Розпорядник', hint: 'Пройди «Розпорядок дня»', test: p => p.adventures.routine.stars >= 2 },
-  { id: 'chrono',   ico: '⏳', nm: 'Хронометр',  hint: 'Пройди «Скільки минуло?»', test: p => p.adventures.elapsed.stars >= 2 }
+  { id: 'chrono',   ico: '⏳', nm: 'Хронометр',  hint: 'Пройди «Скільки минуло?»', test: p => p.adventures.elapsed.stars >= 2 },
+  { id: 'feel',     ico: '⏱️', nm: 'Відчуваю час', hint: 'Пройди «Скільки триває хвилина?»', test: p => p.adventures.feel.stars >= 2 },
+  { id: 'faces',    ico: '🕰️', nm: 'Годинникар', hint: 'Пройди «Справжні годинники»', test: p => p.adventures.faces.stars >= 2 }
 ];
 
 /* Парк росте разом із зірками — це «мета-нагорода», заради якої хочеться повертатися. */

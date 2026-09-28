@@ -61,3 +61,35 @@ describe('адаптивний добір', () => {
     }
   });
 });
+
+describe('різноманітність', () => {
+  it('не повторює той самий час і не дає один тип тричі поспіль', () => {
+    for (const level of [0, 1, 2, 4]) {
+      const p = blankProgress(5);
+      const r = seeded(100 + level);
+      const recent: { h: number; m: number; kind: 'read' | 'say' | 'set' }[] = [];
+      for (let i = 0; i < 200; i++) {
+        const t = planTask(p, level, mins, r, recent);
+        expect(recent.slice(-4).some(x => x.h === t.h && x.m === t.m), `рівень ${level}, крок ${i}`).toBe(false);
+        const two = recent.slice(-2);
+        expect(two.length === 2 && two.every(x => x.kind === t.kind)).toBe(false);
+        recent.push({ h: t.h, m: t.m, kind: t.kind });
+      }
+    }
+  });
+
+  it('повтор помилки йде іншим типом завдання', () => {
+    const p = blankProgress(5);
+    p.totals.asked = 10;
+    scheduleReview(p, { h: 4, m: 30, kind: 'read', level: 1, reason: 'normal' }, false);
+    p.totals.asked = 13;
+    const r = seeded(5);
+    let t;
+    for (let i = 0; i < 20; i++) { t = planTask(p, 1, mins, r); if (t.reason === 'review') break; }
+    expect(t!.reason).toBe('review');
+    expect(t!.kind).toBe('set');
+    // Виправлення іншим типом знімає її з черги
+    expect(scheduleReview(p, t!, true)).toBe(true);
+    expect(p.review).toHaveLength(0);
+  });
+});

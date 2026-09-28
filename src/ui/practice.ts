@@ -1,6 +1,6 @@
 /* Режим «Гра»: рівні, пригоди, адаптивний добір і перетягування стрілок. */
 
-import { planTask, recordTraps, scheduleReview, type Plan } from '../core/adaptive';
+import { planTask, recordTraps, scheduleReview, tooSimilar, type Plan, type Recent } from '../core/adaptive';
 import {
   ADVENTURES, BADGES, CHEER_SAY, CHEER_UP, LEVELS, MAX_STARS, PASS, PRAISE, PRAISE_SAY, ROUND,
   PARK, nextAttraction, starsFor, totalStars, type AdventureId
@@ -11,12 +11,13 @@ import {
   ROUTINE, diagnoseSet, elapsedTask, readOptions, routineTask, sayOptions, trapsFor,
   type ElapsedTask, type Option, type RoutineTask, type Trap
 } from '../core/questions';
+import { feelTask, judgeEstimate, type FeelTask } from '../core/feel';
 import { pick, rnd, shuffle } from '../core/rng';
 import { TRAP_VIDEOS } from '../core/videos';
 import { angleDist, angleOf, digital, fromDial, toDial } from '../core/time';
 import { SFX } from '../lib/audio';
 import { FX } from '../lib/fx';
-import { CX, CY, R } from '../scene/scene';
+import { CX, CY, FACE_NAMES, R, setFaceStyle, setStopwatch, type FaceStyle } from '../scene/scene';
 import { bump, popover, say, speakNow } from './buddy';
 import { $, anyOf, app, h } from './state';
 import { videoButton } from './video';
@@ -25,9 +26,10 @@ import { renderHands, setSky, showSun } from './view';
 type Track = { kind: 'level'; idx: number } | { kind: 'adv'; id: AdventureId };
 
 type Task =
-  | { type: 'clock'; plan: Plan; options: Option[] }
+  | { type: 'clock'; plan: Plan; options: Option[]; style?: FaceStyle }
   | { type: 'routine'; t: RoutineTask }
-  | { type: 'elapsed'; t: ElapsedTask };
+  | { type: 'elapsed'; t: ElapsedTask }
+  | { type: 'feel'; t: FeelTask };
 
 let track: Track = { kind: 'level', idx: Math.min(app.p.level, app.p.unlocked) };
 let task: Task | null = null;
@@ -36,6 +38,21 @@ let answered = false;
 let dial = 540;     // що показує циферблат у грі (0..719)
 let raw = 540;      // необроблений стан під час перетягування
 let anim: { from: number; to: number; t0: number; ms: number } | null = null;
+/* «Скільки триває хвилина?»: коли натиснули «Старт» і де зараз секундна стрілка */
+let timerStart = 0;
+let secShown: { to: number; t0: number } | null = null;
+/* Що було в цьому сеансі — щоб завдання не повторювались поспіль */
+let recent: Recent[] = [];
+let recentKeys: string[] = [];
+const seenRecently = (key: string, n = 4) => recentKeys.slice(-n).includes(key);
+/** Бере перший варіант, якого не було нещодавно (або останній, якщо вибору нема). */
+function fresh<T>(make: () => T, keyOf: (x: T) => string, n = 4): T {
+  let x = make();
+  for (let i = 0; i < 25 && seenRecently(keyOf(x), n); i++) x = make();
+  recentKeys.push(keyOf(x));
+  if (recentKeys.length > 20) recentKeys.shift();
+  return x;
+}
 
 /** Викликається після кожного раунду — main.ts святкує нові атракціони. */
 let onRoundEnd: () => void = () => {};
@@ -84,10 +101,14 @@ function startTrack(): void {
 function newTask(): void {
   answered = false;
   anim = null;
+  timerStart = 0;
+  secShown = null;
+  app.S.parts.fSec.el.classList.remove('on');
   const p = app.p;
+  let style: FaceStyle = 'teach';
 
   if (track.kind === 'level') {
-    const plan = planTask(p, track.idx, LEVELS.map(l => l.mins));
+    const plan = planTask(p, track.idx, LEVELS.map(l => l.mins), Math.random, recent);
     const options = plan.kind === 'read' ? readOptions(plan.h, plan.m)
       : plan.kind === 'say' ? sayOptions(plan.h, plan.m) : [];
     task = { type: 'clock', plan, options };
@@ -99,8 +120,35 @@ function newTask(): void {
       raw = dial = toDial(plan.h, plan.m);
     }
     setSky(12);
+  } else if (track.id === 'faces') {
+    // Справжні годинники: хвилини — за найвищим пройденим рівнем, але не точніше п'ятірок
+    const lv = Math.min(p.unlocked, 3);
+    let plan: Plan;
+    let tries = 0;
+    do {
+      const kind = Math.random() < 0.7 ? 'read' : 'set';
+      plan = { h: 1 + rnd(12), m: pick(LEVELS[lv].mins), kind, level: lv, reason: 'normal' };
+    } while (tooSimilar(plan, recent) && ++tries < 20);
+    const { h: h0, m: m0, kind } = plan;
+    // Стиль циферблата не повторюється поспіль
+    style = fresh(() => pick(['classic', 'roman', 'minimal'] as const), x => 'style:' + x, 1);
+    task = { type: 'clock', plan, options: kind === 'read' ? readOptions(h0, m0) : [], style };
+    if (kind === 'set') {
+      const start = (toDial(h0, m0) + 150 + rnd(300)) % 720;
+      raw = dial = (Math.round(start / LEVELS[lv].snap) * LEVELS[lv].snap) % 720;
+    } else {
+      raw = dial = toDial(h0, m0);
+    }
+    setSky(12);
+  } else if (track.id === 'feel') {
+    // Та сама справа чи той самий режим тричі поспіль — нудно; однакова ціль секунд — теж
+    const t = fresh(() => feelTask(Math.random, p.adventures.feel.right >= 5),
+      x => x.mode === 'estimate' ? 'sec:' + x.seconds : 'q:' + x.text + x.options.map(o => o.label).sort().join());
+    task = { type: 'feel', t };
+    raw = dial = 0;
+    setSky(12);
   } else if (track.id === 'routine') {
-    const act = pick(ROUTINE);
+    const act = fresh(() => pick(ROUTINE), a => 'act:' + a.id, 5);
     const kind = Math.random() < 0.6 ? 'what' : 'write';
     const others = shuffle([...ROUTINE]);
     task = { type: 'routine', t: routineTask(act, kind, others) };
@@ -108,13 +156,22 @@ function newTask(): void {
     setSky(act.h24);
   } else {
     const durs = [15, 30, 45, 60, 90, 20, 10];
-    const d = pick(durs);
+    const d = fresh(() => pick(durs), x => 'dur:' + x, 2);
     const h0 = 1 + rnd(12), m0 = pick(d % 15 === 0 ? [0, 15, 30, 45] : [0, 5, 10, 20, 30, 40, 45, 50]);
-    task = { type: 'elapsed', t: elapsedTask(h0, m0, d, rnd(100)) };
+    const story = fresh(() => rnd(6), x => 'story:' + x, 3);
+    task = { type: 'elapsed', t: elapsedTask(h0, m0, d, story) };
     raw = dial = toDial(h0, m0);
     setSky(12);
   }
 
+  if (task && task.type === 'clock') {
+    recent.push({ h: task.plan.h, m: task.plan.m, kind: task.plan.kind });
+    if (recent.length > 10) recent.shift();
+  }
+  setFaceStyle(app.S, style);
+  const stopwatch = task?.type === 'feel' && task.t.mode === 'estimate';
+  setStopwatch(app.S, stopwatch);
+  app.S.parts.fSec.el.classList.toggle('on', stopwatch);
   renderTask();
   renderDial();
 }
@@ -134,8 +191,9 @@ function renderTask(): void {
 
   const reason = $('pReason');
   const r = t.type === 'clock' ? t.plan.reason : 'normal';
-  reason.hidden = r !== 'review' && r !== 'mix';
-  reason.textContent = r === 'review' ? '🔁 Повторимо' : '🔄 Згадаймо';
+  reason.hidden = r !== 'review' && r !== 'mix' && !(t.type === 'clock' && t.style);
+  reason.textContent = t.type === 'clock' && t.style ? '🕰️ ' + FACE_NAMES[t.style]
+    : r === 'review' ? '🔁 Повторимо' : '🔄 Згадаймо';
 
   // Показник у кутку сцени
   const ro = $('readout');
@@ -159,17 +217,36 @@ function renderTask(): void {
         h('small', { class: 'hint', text: 'Довгу стрілку тягни за край циферблата, коротку — ближче до центру.' }));
       spoken = 'Постав стрілки на ' + sayTime(hh, m) + '.';
     } else {
-      text.textContent = kind === 'read' ? 'Котра година на вежі?' : 'Як сказати цей час українською?';
+      text.textContent = kind === 'read' ? (t.style ? 'Котра година на цьому годиннику?' : 'Котра година на вежі?')
+        : 'Як сказати цей час українською?';
       spoken = text.textContent;
       options = t.options;
       wordy = kind === 'say';
     }
+  } else if (t.type === 'feel' && t.t.mode === 'estimate') {
+    const n = t.t.seconds;
+    text.innerHTML = '';
+    text.append('Натисни «Старт», а потім «Стоп», коли, на твою думку, мине ',
+      h('span', { class: 'target', text: n === 60 ? '1 хвилина' : n + ' секунд' }),
+      h('small', { class: 'hint', text: 'Не дивись на годинник — рахуй про себе.' }));
+    spoken = 'Натисни Старт, а потім Стоп, коли мине ' + (n === 60 ? 'одна хвилина' : n + ' секунд') + '. Рахуй про себе.';
+    opts.className = 'opts timer';
+    const b = h('button', { class: 'opt timer-btn', type: 'button', text: '▶ Старт' });
+    b.addEventListener('click', () => toggleTimer(b));
+    opts.appendChild(b);
+    speakNow(spoken);
+    return;
+  } else if (t.type === 'feel' && t.t.mode !== 'estimate') {
+    text.textContent = t.t.text;
+    spoken = t.t.text;
+    options = t.t.options;
+    wordy = true;
   } else if (t.type === 'routine') {
     text.textContent = t.t.text;
     spoken = t.t.text;
     options = t.t.options;
     wordy = t.t.kind === 'what';
-  } else {
+  } else if (t.type === 'elapsed') {
     text.textContent = t.t.story;
     spoken = t.t.story;
     options = t.t.options;
@@ -208,6 +285,7 @@ function explain(trap: Trap | undefined): string {
     }
     return '';
   }
+  if (t.type === 'feel') return t.t.mode === 'estimate' ? '' : t.t.explain;
   if (t.type === 'routine' && trap === 'ampm') {
     const a = t.t.act;
     return t.t.kind === 'what'
@@ -226,6 +304,7 @@ function rightText(): string {
   const t = task!;
   if (t.type === 'clock') return digital(t.plan.h, t.plan.m) + ' — ' + sayTime(t.plan.h, t.plan.m);
   if (t.type === 'routine') return correctLabel(t.t.options);
+  if (t.type === 'feel') return t.t.mode === 'estimate' ? t.t.seconds + ' секунд' : correctLabel(t.t.options);
   return digital(t.t.end.h, t.t.end.m) + ' — ' + sayTime(t.t.end.h, t.t.end.m);
 }
 
@@ -285,8 +364,11 @@ function giveUp(): void {
   if (answered || !task) return;
   const t = task;
   if (t.type === 'clock' && t.plan.kind === 'set') animateDial(toDial(t.plan.h, t.plan.m));
-  else {
-    const opts = t.type === 'clock' ? t.options : t.t.options;
+  else if (t.type === 'feel' && t.t.mode === 'estimate') {
+    timerStart = 0;
+    $('qOpts').innerHTML = '';
+  } else {
+    const opts = t.type === 'clock' ? t.options : 'options' in t.t ? t.t.options : [];
     [...$('qOpts').children].forEach(b => {
       (b as HTMLButtonElement).disabled = true;
       b.classList.add(b.textContent === correctLabel(opts) ? 'right' : 'faded');
@@ -299,7 +381,7 @@ function giveUp(): void {
 /** Коротке пояснення на «Не знаю» — не покарання, а підказка. */
 function hintFor(): string {
   const t = task!;
-  if (t.type === 'clock') return track.kind === 'level' ? LEVELS[t.plan.level].tip : '';
+  if (t.type === 'clock') return track.kind === 'level' ? LEVELS[t.plan.level].tip : advOf('faces').tip;
   return advOf(t.type).tip;
 }
 
@@ -538,7 +620,50 @@ function animateDial(to: number, ms = 700): void {
   anim = { from: dial, to: target, t0: performance.now(), ms };
 }
 
+let secFrac = 0;
+
+/* ---------- «Скільки триває хвилина?» ---------- */
+
+function toggleTimer(btn: HTMLButtonElement): void {
+  const t = task;
+  if (answered || !t || t.type !== 'feel' || t.t.mode !== 'estimate') return;
+  if (!timerStart) {
+    timerStart = performance.now();
+    btn.textContent = '■ Стоп';
+    btn.classList.add('running');
+    $('pDunno').hidden = true;
+    SFX.tick();
+    say('Рахуй про себе… Я мовчу 🤫', 'idle', 1500, false);
+    return;
+  }
+  const secs = (performance.now() - timerStart) / 1000;
+  const target = t.t.seconds;
+  const ok = judgeEstimate(target, secs);
+  btn.disabled = true;
+  btn.classList.remove('running');
+  btn.textContent = secs.toFixed(1).replace('.', ',') + ' с';
+  // Секундна стрілка «прокручує» відрахований час — видно, скільки це насправді
+  setStopwatch(app.S, true, target);
+  secShown = { to: secs, t0: performance.now() };
+  $('readout').hidden = false;
+  $('digital').textContent = secs.toFixed(1).replace('.', ',') + ' с';
+  $('verbal').textContent = 'треба було ' + target + ' с';
+  const diff = secs - target;
+  const how = ok ? (Math.abs(diff) < 1 ? 'Майже секунда в секунду!' : 'Дуже близько!')
+    : diff < 0 ? 'Трохи поспішив(-ла): час минає повільніше, ніж здається.'
+      : 'Трохи задовго: спробуй рахувати рівніше.';
+  feedback(ok, ` Минуло ${secs.toFixed(1).replace('.', ',')} с, а треба було ${target} с. ${how}` +
+    (ok ? '' : ' ' + advOf('feel').tip));
+  finish(ok, [], undefined, ok ? btn : null);
+}
+
 export function practiceFrame(now: number): void {
+  if (secShown) {
+    const k = Math.min(1, (now - secShown.t0) / 1400);
+    secFrac = (secShown.to / 60) * (1 - Math.pow(1 - k, 3));
+  } else {
+    secFrac = 0;
+  }
   if (anim) {
     const k = Math.min(1, (now - anim.t0) / anim.ms);
     const e = 1 - Math.pow(1 - k, 3);
@@ -551,7 +676,7 @@ export function practiceFrame(now: number): void {
 }
 
 function renderDial(): void {
-  renderHands(dial);
+  renderHands(dial, secFrac);
   const t = task;
   if (t && t.type === 'clock' && t.plan.kind === 'set') {
     const g = fromDial(dial);
