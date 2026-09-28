@@ -1,0 +1,50 @@
+import { describe, expect, it } from 'vitest';
+import { STORE, STORE_V1, blankProgress, loadProgress, logAnswer, migrate, saveProgress } from '../src/core/progress';
+
+const mem = (init: Record<string, string> = {}) => {
+  const m = new Map(Object.entries(init));
+  return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), m };
+};
+
+describe('прогрес', () => {
+  it('переносить запис v1 без втрати зірок', () => {
+    const v1 = {
+      v: 1, unlocked: 2, level: 1,
+      levels: [{ stars: 3, best: 5 }, { stars: 2, best: 4 }, { stars: 0, best: 1 }, { stars: 0, best: 0 }, { stars: 0, best: 0 }],
+      seen: [0, 1, 2], totals: { asked: 20, right: 15, streak: 2, bestStreak: 7 }
+    };
+    const p = loadProgress(mem({ [STORE_V1]: JSON.stringify(v1) }), 5);
+    expect(p.v).toBe(2);
+    expect(p.unlocked).toBe(2);
+    expect(p.levels[0].stars).toBe(3);
+    expect(p.totals.bestStreak).toBe(7);
+    expect(p.totals.fixed).toBe(0);
+    expect(p.welcomed).toBe(true);
+    expect(p.badges).toEqual([]);
+    expect(p.traps.swap).toEqual({ seen: 0, fell: 0 });
+  });
+
+  it('відкидає несумісне й не падає на смітті', () => {
+    expect(migrate({ v: 9 }, 5)).toBeNull();
+    expect(migrate({ v: 1, levels: [] }, 5)).toBeNull();
+    expect(loadProgress(mem({ [STORE]: '{not json' }), 5).v).toBe(2);
+    const throwing = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('denied'); } };
+    expect(loadProgress(throwing, 5).unlocked).toBe(0);
+    expect(() => saveProgress(throwing, blankProgress(5))).not.toThrow();
+  });
+
+  it('зберігає й читає назад', () => {
+    const s = mem();
+    const p = blankProgress(5);
+    p.unlocked = 3; p.traps.decimal = { seen: 4, fell: 2 };
+    saveProgress(s, p);
+    expect(loadProgress(s, 5)).toEqual(p);
+  });
+
+  it('веде денну статистику й тримає лише 60 днів', () => {
+    const p = blankProgress(5);
+    for (let i = 0; i < 70; i++) logAnswer(p, i % 2 === 0, new Date(2026, 0, 1 + i));
+    expect(Object.keys(p.days)).toHaveLength(60);
+    expect(p.days['2026-03-11']).toEqual({ asked: 1, right: 0, ms: 0 });
+  });
+});

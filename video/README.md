@@ -1,0 +1,53 @@
+# Відеопояснення: локальний конвеєр
+
+```
+src/core/videos.ts ─┐                     ┌─ LM Studio (необов’язково): review.py → out/review.md
+src/core/video-beats.ts ┴─ npm run video:brief → clips.json
+                                           ├─ Piper:   voice.py  → out/<id>/voice.wav + spans.json
+                                           └─ Blender: render.py → out/<id>/<id>.blend / .mp4 / .jpg / .vtt
+                                                                  out/manifest.json
+```
+
+Сценарії й рух стрілок живуть **у коді гри**, тож гра, субтитри й кліпи завжди кажуть одне.
+Стрілки рендерить Blender за точною математикою — генератори відео плутають циферблат.
+
+## Що встановити
+
+| Інструмент | Навіщо | Як |
+|---|---|---|
+| Blender 4.2+ | рендер сцен, редаговані `.blend` | blender.org (у вас уже є) |
+| Python 3.10+ | запуск скриптів | python.org |
+| Piper | український голос Тіка, офлайн | `pip install -r video/requirements.txt` |
+| Голос Piper | модель **ukrainian_tts** | [rhasspy/piper-voices → uk/uk_UA/ukrainian_tts/medium](https://huggingface.co/rhasspy/piper-voices/tree/main/uk/uk_UA/ukrainian_tts/medium): завантажте `uk_UA-ukrainian_tts-medium.onnx` і `.onnx.json` у `video/voices/`. Послухати дикторів: [piper-samples](https://rhasspy.github.io/piper-samples/) |
+| ffmpeg (бажано) | трохи вищий «мультяшний» тон голосу | winget / brew / apt; без нього голос просто лишається як є |
+| LM Studio | редакторська перевірка сценаріїв | у вас уже є; увімкніть сервер (Developer → Start Server) |
+
+## Кроки
+
+```bash
+npm run video:brief                                   # 1. сценарії → video/clips.json
+
+python video/review.py --model bionic                 # 2. (необов’язково) зауваження → video/out/review.md
+
+python video/voice.py                                 # 3. голос Тіка (ukrainian_tts, диктор mykyta);
+                                                      #    інший: --speaker lada / tetiana / номер
+
+blender -b -P video/blender/render.py -- --only stage-4          # 4. пробний кліп
+blender -b -P video/blender/render.py -- --res 1920x1080         #    усі 21 кліп
+```
+
+Без голосу можна одразу робити чернетки: `python video/voice.py --silent`.
+
+**Швидкість.** Типовий рушій — Eevee на відеокарті (секунди на кліп). Без відеокарти:
+`--engine CYCLES --samples 16` — повільніше, але працює всюди.
+
+**Правки.** Кожен кліп зберігається як `video/out/<id>/<id>.blend`: відкрийте в Blender і
+змініть що завгодно — кольори, розташування, криві анімації. Щоб перерендерити саме
+правлену сцену, рендеріть її з Blender (Render → Render Animation). Повторний запуск
+`render.py` будує сцену заново з партитури й **перезаписує** `.blend`.
+
+## Публікація
+
+Уся тека `video/out/` (крім `.blend`, `.wav`, `spans.json`) разом із `manifest.json`
+викладається в сховище з дозволеним CORS (наприклад, Vercel Blob). Адреса теки → змінна
+`VITE_VIDEO_BASE` у Vercel, потім перезбірка. Кнопки «▶ Відео» з’являться самі.
