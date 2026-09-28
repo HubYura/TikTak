@@ -5,7 +5,7 @@ import type { VideoClip } from '../core/videos';
 import { SFX } from '../lib/audio';
 import { Videos } from '../lib/video';
 import { Voice } from '../lib/voice';
-import { $, h } from './state';
+import { $, app, h } from './state';
 
 let onClose: (() => void) | null = null;
 
@@ -60,6 +60,7 @@ export function openVideo(clip: VideoClip, after?: () => void): void {
   } else {
     scriptCues(video, clip.say);
   }
+  if (file.narrate) narrate(video);
   video.addEventListener('error', () => {
     box.innerHTML = '';
     box.append(h('p', { class: 'v-fallback', text: clip.say }));
@@ -70,9 +71,25 @@ export function openVideo(clip: VideoClip, after?: () => void): void {
   $('vClose').focus();
 }
 
+/** Для кліпів без записаного голосу: Тік читає кожен субтитр у момент його появи. */
+function narrate(video: HTMLVideoElement): void {
+  if (!Voice.available() || !app.p.settings.voice) return;
+  const hook = (track: TextTrack) => {
+    track.addEventListener('cuechange', () => {
+      const cue = track.activeCues?.[0] as VTTCue | undefined;
+      if (cue && !video.paused) Voice.speak(cue.text, false);
+    });
+  };
+  for (const t of Array.from(video.textTracks)) hook(t);
+  video.textTracks.addEventListener('addtrack', e => { if (e.track) hook(e.track); });
+  video.addEventListener('pause', () => Voice.stop());
+  video.addEventListener('seeking', () => Voice.stop());
+}
+
 export function closeVideo(): void {
   const v = $('vBox').querySelector('video');
   v?.pause();
+  Voice.stop();
   $('vBox').innerHTML = '';
   $('videoModal').hidden = true;
   const f = onClose;

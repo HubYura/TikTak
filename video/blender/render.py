@@ -776,6 +776,9 @@ def write_manifest(out_dir: Path):
                 entry['poster'] = f'{d.name}.jpg'
             if (d / f'{d.name}.vtt').exists():
                 entry['vtt'] = f'{d.name}.vtt'
+            spans = d / 'spans.json'
+            if spans.exists() and not json.loads(spans.read_text('utf-8')).get('voiced'):
+                entry['narrate'] = True   # без голосу: гра читає субтитри сама
             clips[d.name] = entry
     (out_dir / 'manifest.json').write_text(json.dumps({'clips': clips}, ensure_ascii=False, indent=2), 'utf-8')
     return len(clips)
