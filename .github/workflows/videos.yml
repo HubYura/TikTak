@@ -77,7 +77,7 @@ jobs:
       - name: Зрендерити
         run: |
           RES="${{ github.event.inputs.res }}"
-          python video/blender/render.py -- --engine CYCLES --samples 3 --res "${RES:-960x540}" --only ${{ steps.part.outputs.ids }}
+          python video/blender/render.py -- --engine CYCLES --samples 5 --res "${RES:-960x540}" --only ${{ steps.part.outputs.ids }}
 
       - uses: actions/upload-artifact@v4
         with:
