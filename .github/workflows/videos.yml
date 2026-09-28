@@ -117,4 +117,6 @@ jobs:
           git add public/videos
           if git diff --cached --quiet; then echo "Без змін"; exit 0; fi
           git commit -m "Re-render explainer videos with Piper voice (ukrainian_tts)"
-          git push
+          # Поки йшов рендер, у гілку могли запушити інші коміти — стаємо поверх них
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
