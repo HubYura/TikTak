@@ -3,7 +3,11 @@
    { "clips": { "stage-1": { "src": "stage-1.mp4", "poster": "stage-1.jpg", "vtt": "stage-1.vtt" } } }
    Кнопки відео з'являються лише для кліпів, які є в маніфесті. Офлайн — просто не показуємо. */
 
-export interface ClipFile { src: string; poster?: string; vtt?: string }
+export interface ClipFile {
+  src: string; poster?: string; vtt?: string;
+  /** У кліпі немає записаного голосу — гра читає субтитри вголос сама. */
+  narrate?: boolean;
+}
 
 type Listener = () => void;
 
@@ -27,7 +31,8 @@ export function parseManifest(raw: unknown, base: string): Map<string, ClipFile>
     out.set(id, {
       src: resolve(base, f.src),
       poster: typeof f.poster === 'string' ? resolve(base, f.poster) : undefined,
-      vtt: typeof f.vtt === 'string' ? resolve(base, f.vtt) : undefined
+      vtt: typeof f.vtt === 'string' ? resolve(base, f.vtt) : undefined,
+      narrate: f.narrate === true
     });
   }
   return out;
@@ -40,6 +45,8 @@ export const Videos = {
   async load(base: string | undefined): Promise<void> {
     if (!base) return;
     try {
+      // Відносна адреса ('/videos/') рахується від сайту
+      base = new URL(base, location.href).href;
       const res = await fetch(resolve(base, 'manifest.json'), { cache: 'no-cache' });
       if (!res.ok) return;
       const parsed = parseManifest(await res.json(), base);

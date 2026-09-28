@@ -26,7 +26,7 @@ describe('parseManifest', () => {
         'stage-1': { src: 'stage-1.mp4', poster: 'p/stage-1.jpg' },
         'bad id!': { src: 'x.mp4' },
         'stage-2': { poster: 'no-src.jpg' },
-        'intro': { src: 'https://cdn.example.com/intro.mp4', vtt: 'intro.vtt' }
+        'intro': { src: 'https://cdn.example.com/intro.mp4', vtt: 'intro.vtt', narrate: true }
       }
     }, 'https://blob.example.com/videos');
     expect([...m.keys()]).toEqual(['stage-1', 'intro']);
@@ -34,6 +34,8 @@ describe('parseManifest', () => {
     expect(m.get('stage-1')!.poster).toBe('https://blob.example.com/videos/p/stage-1.jpg');
     expect(m.get('intro')!.src).toBe('https://cdn.example.com/intro.mp4');
     expect(m.get('intro')!.vtt).toBe('https://blob.example.com/videos/intro.vtt');
+    expect(m.get('intro')!.narrate).toBe(true);
+    expect(m.get('stage-1')!.narrate).toBe(false);
     expect(parseManifest(null, 'https://x/').size).toBe(0);
     expect(parseManifest({ clips: 5 }, 'https://x/').size).toBe(0);
   });

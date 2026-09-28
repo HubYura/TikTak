@@ -228,7 +228,8 @@ Videos.onChange(() => {
   const b = videoButton(INTRO, '▶ Знайомство з Тіком');
   $('wVideo').replaceChildren(...(b ? [b] : []));
 });
-Videos.load(import.meta.env.VITE_VIDEO_BASE);
+// Типово — тека /videos/ на самому сайті; окреме сховище задається через VITE_VIDEO_BASE
+Videos.load(import.meta.env.VITE_VIDEO_BASE || '/videos/');
 
 /* ---------- Старт ---------- */
 

@@ -40,11 +40,12 @@ export function speakable(text: string): string {
 export const Voice = {
   available: (): boolean => !!voice,
   onChange(l: Listener): void { listeners.push(l); l(!!voice); },
-  speak(text: string): void {
+  /** interrupt=false — стати в чергу, не обриваючи попередню фразу. */
+  speak(text: string, interrupt = true): void {
     if (!synth || !voice) return;
     const t = speakable(text);
     if (!t) return;
-    synth.cancel();
+    if (interrupt) synth.cancel();
     const u = new SpeechSynthesisUtterance(t);
     u.voice = voice;
     u.lang = voice.lang;
