@@ -9,3 +9,7 @@
 Thumbs.db
 
 node_modules/
+
+# Збірка
+dist/
+dev-dist/

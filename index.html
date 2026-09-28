@@ -4,80 +4,64 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>ЧасоПарк — вчимося читати годинник</title>
-<meta name="description" content="Інтерактивна гра для дітей початкової школи: будуємо годинникову вежу, вчимося читати аналоговий годинник і тренуємося на рівнях із зірками.">
-<meta name="theme-color" content="#16303f">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%95%92%3C/text%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<meta name="description" content="Гра для дітей 6–10 років: будуємо годинникову вежу, вчимося читати аналоговий годинник і вирощуємо власний парк атракціонів.">
+<meta name="theme-color" content="#bfe9ff">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
 </head>
 <body>
-<div class="app">
+<div class="app" id="app">
 
   <header class="topbar">
-    <div class="logo"><span class="logo-mark">🎡</span> ЧасоПарк</div>
+    <div class="logo">
+      <span class="logo-tik" data-tik="logo" aria-hidden="true"></span>
+      <span>Часо<b>Парк</b></span>
+    </div>
 
     <div class="modes" role="tablist" aria-label="Режим">
       <button class="mode-btn is-active" id="modeLearn" type="button" role="tab" aria-selected="true">
-        <span aria-hidden="true">📚</span> Навчання
+        <span aria-hidden="true">📚</span> Урок
       </button>
       <button class="mode-btn" id="modePractice" type="button" role="tab" aria-selected="false">
         <span aria-hidden="true">🎮</span> Гра
       </button>
     </div>
 
-    <button class="icon-btn" id="btnSound" type="button" aria-label="Увімкнути або вимкнути звук">🔊</button>
-
-    <nav class="rail" id="rail" aria-label="Етапи навчання"></nav>
+    <div class="top-actions">
+      <span class="star-pill" id="starPill" title="Твої зірки"><i aria-hidden="true">⭐</i> <b>0</b></span>
+      <button class="icon-btn" id="btnVoice" type="button" aria-label="Озвучка Тіка" aria-pressed="true" hidden>🗣️</button>
+      <button class="icon-btn" id="btnSound" type="button" aria-label="Звук" aria-pressed="true">🔊</button>
+      <button class="icon-btn" id="btnParents" type="button" aria-label="Для батьків" title="Для батьків">👪</button>
+    </div>
   </header>
 
   <main class="stage">
 
-    <section class="scene-wrap" id="sceneWrap">
+    <section class="scene-card" id="sceneWrap">
       <svg id="scene" viewBox="0 0 900 620" role="img" aria-labelledby="sceneTitle">
-        <title id="sceneTitle">Ізометричний парк із годинниковою вежею</title>
+        <title id="sceneTitle">Летючий острів-парк із годинниковою вежею</title>
       </svg>
 
-      <div class="readout" id="readout" hidden>
-        <div class="digital" id="digital">12:00</div>
-        <div class="verbal" id="verbal"></div>
+      <div class="readout" id="readout" hidden aria-live="polite">
+        <span class="digital" id="digital">12:00</span>
+        <span class="verbal" id="verbal"></span>
       </div>
 
-      <div class="badge" id="badge">Етап 1 / 11</div>
+      <div class="stage-badge" id="badge">Етап 1 / 11</div>
       <div class="popover" id="popover" hidden></div>
     </section>
 
     <aside class="panel" id="panel">
 
-      <!-- Маскот -->
       <div class="buddy" id="buddy" data-mood="idle">
-        <svg class="buddy-face" viewBox="0 0 72 78" aria-hidden="true">
-          <path d="M36 4 L36 14" stroke="#cf7f1c" stroke-width="4" stroke-linecap="round"/>
-          <circle cx="36" cy="4" r="4" fill="#f6b757"/>
-          <circle cx="36" cy="44" r="30" fill="#f6b757" stroke="#cf7f1c" stroke-width="3"/>
-          <circle cx="36" cy="44" r="23" fill="#fdf5e2"/>
-          <g class="b-eyes">
-            <ellipse cx="28" cy="40" rx="3.6" ry="4.6" fill="#2b3a45"/>
-            <ellipse cx="44" cy="40" rx="3.6" ry="4.6" fill="#2b3a45"/>
-          </g>
-          <g class="b-eyes-happy">
-            <path d="M24 41 q4 -5 8 0" stroke="#2b3a45" stroke-width="3" fill="none" stroke-linecap="round"/>
-            <path d="M40 41 q4 -5 8 0" stroke="#2b3a45" stroke-width="3" fill="none" stroke-linecap="round"/>
-          </g>
-          <path class="b-mouth-idle" d="M30 53 q6 4 12 0" stroke="#2b3a45" stroke-width="2.8" fill="none" stroke-linecap="round"/>
-          <path class="b-mouth-happy" d="M28 51 q8 9 16 0 q-8 4 -16 0" fill="#2b3a45"/>
-          <ellipse class="b-mouth-oops" cx="36" cy="54" rx="4" ry="5" fill="#2b3a45"/>
-          <g class="b-blush">
-            <circle cx="22" cy="50" r="3.4" fill="#e05a45" opacity=".35"/>
-            <circle cx="50" cy="50" r="3.4" fill="#e05a45" opacity=".35"/>
-          </g>
-        </svg>
-        <div class="buddy-say" id="buddySay">Привіт! Я Тік. Збудуймо годинникову вежу!</div>
+        <span class="buddy-face" data-tik="buddy" aria-hidden="true"></span>
+        <div class="buddy-say" id="buddySay" aria-live="polite">Привіт! Я Тік. Збудуймо годинникову вежу!</div>
+        <button class="replay" id="btnReplay" type="button" aria-label="Послухати ще раз" hidden>🔈</button>
       </div>
 
-      <!-- ===== Режим навчання ===== -->
+      <!-- ===== Урок ===== -->
       <div id="panelLearn">
+        <nav class="rail" id="rail" aria-label="Етапи уроку"></nav>
         <div class="panel-head">
           <span class="chip" id="chip">Будівництво</span>
           <h2 id="stTitle">—</h2>
@@ -85,125 +69,131 @@
         <p class="desc" id="stDesc"></p>
 
         <div class="card idea">
-          <h3><span aria-hidden="true">💡</span> Ключова ідея</h3>
+          <h3><span aria-hidden="true">💡</span> Головне</h3>
           <p id="stIdea"></p>
         </div>
-
         <div class="card warn">
           <h3><span aria-hidden="true">⚠️</span> Часта помилка</h3>
           <p id="stWarn"></p>
         </div>
-
         <div class="card try">
           <h3><span aria-hidden="true">🎯</span> Спробуй сам</h3>
           <p id="stTry"></p>
         </div>
       </div>
 
-      <!-- ===== Режим гри ===== -->
+      <!-- ===== Гра ===== -->
       <div id="panelPractice" hidden>
-        <div class="scoreline">
-          <span class="score-pill hot" id="pStreak" title="Правильних поспіль"><i>🔥</i> <b>0</b></span>
-          <span class="score-pill gold" id="pStars" title="Зібрано зірок"><i>⭐</i> <b>0</b></span>
-          <span class="score-pill" id="pAcc" title="Влучність"><i>🎯</i> <b>—</b></span>
-        </div>
-
-        <div class="xpwrap">
-          <div class="xpbar"><span id="xpFill"></span></div>
-          <span class="xplabel" id="xpLabel">—</span>
-        </div>
-
-        <div class="panel-head">
-          <span class="chip" id="pChip">Рівень 1</span>
-          <h2 id="pName">—</h2>
-        </div>
-
-        <div class="levels" id="levels" role="group" aria-label="Рівні"></div>
-
-        <div class="quiz">
-          <div class="qdots" id="qDots" aria-label="Питання раунду"></div>
+        <div class="quiz-card">
+          <div class="quiz-top">
+            <span class="chip" id="pChip">Рівень 1</span>
+            <span class="tag-review" id="pReason" hidden></span>
+            <div class="qdots" id="qDots" aria-label="Питання раунду"></div>
+          </div>
           <p class="qtext" id="qText">—</p>
           <div class="opts" id="qOpts"></div>
-          <div class="fb" id="qFb" hidden></div>
+          <div class="fb" id="qFb" hidden aria-live="polite"></div>
         </div>
 
-        <div class="card try" id="pTipCard">
-          <h3><span aria-hidden="true">🧭</span> Підказка рівня</h3>
-          <p id="pTip"></p>
-        </div>
+        <h3 class="section-label">Рівні</h3>
+        <div class="levels" id="levels" role="group" aria-label="Рівні"></div>
+
+        <h3 class="section-label">Пригоди</h3>
+        <div class="levels adventures" id="adventures" role="group" aria-label="Пригоди"></div>
+
+        <div class="park-progress" id="parkProgress"></div>
 
         <h3 class="section-label">Твої значки</h3>
         <div class="badges" id="badgesRow"></div>
-
-        <div class="stats" id="pStats"></div>
-        <button class="linkbtn" id="btnResetProgress" type="button">Скинути прогрес</button>
       </div>
 
-    </aside>
+      <button class="parents-link" id="btnParents2" type="button">👪 Для батьків</button>
 
+    </aside>
   </main>
 
   <footer class="controls">
-
     <div class="ctrl-set" id="ctrlLearn">
       <div class="ctrl-group">
-        <button class="btn" id="btnPrev" type="button" title="Попередній етап (←)" aria-label="Попередній етап">⏮</button>
-        <button class="btn btn-play" id="btnPlay" type="button" title="Пуск / пауза (пробіл)" aria-label="Пуск або пауза">▶</button>
-        <button class="btn" id="btnNext" type="button" title="Наступний етап (→)" aria-label="Наступний етап">⏭</button>
-        <button class="btn" id="btnReset" type="button" title="Спочатку (R)" aria-label="Почати спочатку">↻</button>
+        <button class="btn" id="btnPrev" type="button" title="Попередній етап (←)" aria-label="Попередній етап">◀</button>
+        <button class="btn btn-go" id="btnPlay" type="button" title="Пуск / пауза (пробіл)" aria-label="Пуск">▶</button>
+        <button class="btn" id="btnNext" type="button" title="Наступний етап (→)" aria-label="Наступний етап">▶▶</button>
+        <button class="btn" id="btnReset" type="button" title="Спочатку (R)" aria-label="Почати спочатку">↺</button>
       </div>
-
       <div class="ctrl-group speeds" role="group" aria-label="Швидкість анімації">
-        <span class="ctrl-label">Швидкість</span>
-        <button class="btn btn-sm" data-speed="0.5" type="button">0.5×</button>
-        <button class="btn btn-sm is-active" data-speed="1" type="button">1×</button>
-        <button class="btn btn-sm" data-speed="2" type="button">2×</button>
+        <button class="btn btn-sm" data-speed="0.5" type="button" aria-label="Повільно">🐢</button>
+        <button class="btn btn-sm is-active" data-speed="1" type="button" aria-label="Звичайно">1×</button>
+        <button class="btn btn-sm" data-speed="2" type="button" aria-label="Швидко">🐇</button>
       </div>
-
-      <div class="ctrl-group">
-        <label class="switch">
-          <input type="checkbox" id="tglFocus" checked>
-          <span class="switch-track"><span class="switch-knob"></span></span>
-          <span class="ctrl-label">Підсвітка</span>
-        </label>
-      </div>
+      <label class="switch" title="Приглушувати все, крім того, що вивчаємо">
+        <input type="checkbox" id="tglFocus" checked>
+        <span class="switch-track"><span class="switch-knob"></span></span>
+        <span class="ctrl-label">Підсвітка</span>
+      </label>
+      <button class="btn btn-go btn-wide" id="btnToGame" type="button" hidden>🎮 До гри!</button>
     </div>
 
     <div class="ctrl-set" id="ctrlPractice" hidden>
-      <button class="btn btn-play" id="pCheck" type="button">✓ Перевірити</button>
-      <button class="btn" id="pDunno" type="button">Не знаю</button>
-      <button class="btn btn-play" id="pNext" type="button" hidden>Далі ➜</button>
+      <button class="btn btn-go btn-wide" id="pCheck" type="button">✓ Перевірити</button>
+      <button class="btn" id="pDunno" type="button">🤔 Не знаю</button>
+      <button class="btn btn-go btn-wide" id="pNext" type="button" hidden>Далі ➜</button>
     </div>
-
   </footer>
-
 </div>
 
-<!-- Привітання під час першого запуску -->
+<!-- Привітання -->
 <div class="overlay" id="welcome" hidden>
-  <div class="sheet">
-    <svg class="welcome-face" viewBox="0 0 72 78" aria-hidden="true">
-      <path d="M36 4 L36 14" stroke="#cf7f1c" stroke-width="4" stroke-linecap="round"/>
-      <circle cx="36" cy="4" r="4" fill="#f6b757"/>
-      <circle cx="36" cy="44" r="30" fill="#f6b757" stroke="#cf7f1c" stroke-width="3"/>
-      <circle cx="36" cy="44" r="23" fill="#fdf5e2"/>
-      <path d="M24 41 q4 -5 8 0" stroke="#2b3a45" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M40 41 q4 -5 8 0" stroke="#2b3a45" stroke-width="3" fill="none" stroke-linecap="round"/>
-      <path d="M28 51 q8 9 16 0 q-8 4 -16 0" fill="#2b3a45"/>
-      <circle cx="22" cy="50" r="3.4" fill="#e05a45" opacity=".35"/>
-      <circle cx="50" cy="50" r="3.4" fill="#e05a45" opacity=".35"/>
-    </svg>
-    <h2>Привіт! Я Тік 👋</h2>
-    <p>Разом збудуємо годинникову вежу і навчимося читати справжній годинник зі стрілками.</p>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="wTitle">
+    <span class="welcome-face" data-tik="big" aria-hidden="true"></span>
+    <h2 id="wTitle">Привіт! Я Тік 👋</h2>
+    <p>Разом збудуємо годинникову вежу, навчимося читати справжній годинник — і виростимо цілий парк атракціонів!</p>
     <div class="sheet-btns">
-      <button class="btn btn-play big" id="wLearn" type="button">📚 Вчитися</button>
+      <button class="btn btn-go big" id="wLearn" type="button">📚 Вчитися</button>
       <button class="btn big" id="wPlay" type="button">🎮 Одразу грати</button>
     </div>
   </div>
 </div>
 
-<script src="audio.js"></script>
-<script src="fx.js"></script>
-<script src="app.js"></script>
+<!-- Новий атракціон -->
+<div class="overlay soft" id="parkToast" hidden>
+  <div class="sheet toast" role="dialog" aria-modal="true" aria-labelledby="ptTitle">
+    <div class="toast-ico" id="ptIco">🎠</div>
+    <h2 id="ptTitle">Новий атракціон!</h2>
+    <p id="ptText"></p>
+    <button class="btn btn-go big" id="ptOk" type="button">Ура! ➜</button>
+  </div>
+</div>
+
+<!-- Батьківський замок -->
+<div class="overlay" id="gate" hidden>
+  <form class="sheet gate" id="gateForm" role="dialog" aria-modal="true" aria-labelledby="gTitle">
+    <h2 id="gTitle">👪 Для дорослих</h2>
+    <p>Щоб відкрити звіт, розв’яжіть приклад:</p>
+    <label class="gate-q"><span id="gQ">7 × 8 =</span>
+      <input id="gA" inputmode="numeric" autocomplete="off" pattern="[0-9]*" maxlength="3" aria-label="Відповідь">
+    </label>
+    <p class="gate-err" id="gErr" hidden>Не зовсім. Спробуйте ще раз.</p>
+    <div class="sheet-btns">
+      <button class="btn btn-go" type="submit">Відкрити</button>
+      <button class="btn" type="button" id="gCancel">Скасувати</button>
+    </div>
+  </form>
+</div>
+
+<!-- Звіт для батьків -->
+<div class="overlay report-wrap" id="report" hidden>
+  <div class="report" role="dialog" aria-modal="true" aria-labelledby="rTitle">
+    <header class="report-head">
+      <h2 id="rTitle">Звіт для батьків</h2>
+      <div class="report-actions">
+        <button class="btn btn-sm" id="rPrint" type="button">🖨️ Друк</button>
+        <button class="btn btn-sm" id="rClose" type="button" aria-label="Закрити">✕</button>
+      </div>
+    </header>
+    <div id="reportBody"></div>
+  </div>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
 </body>
 </html>

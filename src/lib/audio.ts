@@ -1,48 +1,46 @@
-/* ============================================================
-   Звук — усе синтезується через Web Audio.
-   Жодних файлів, жодних мережевих запитів, ~0 КБ трафіку.
-   ============================================================ */
+/* Звук — усе синтезується через Web Audio.
+   Жодних файлів, жодних мережевих запитів. */
 
-'use strict';
+import { getFlag, setFlag } from './storage';
 
-const SFX = (function () {
-  const KEY = 'chasopark.sound.v1';
+const KEY = 'chasopark.sound.v1';
 
-  let ctx = null, master = null, noiseBuf = null;
-  let enabled = true;
-  try {
-    const v = localStorage.getItem(KEY);
-    if (v !== null) enabled = v === '1';
-  } catch (e) { /* сховище недоступне — просто лишаємо звук увімкненим */ }
+interface ToneOpts { at?: number; type?: OscillatorType; to?: number; vol?: number; attack?: number }
+interface HissOpts { at?: number; filter?: BiquadFilterType; freq?: number; to?: number; q?: number; vol?: number }
+
+export const SFX = (() => {
+
+  let ctx: AudioContext | null = null, master: GainNode | null = null, noiseBuf: AudioBuffer | null = null;
+  let enabled = getFlag(KEY, true);
 
   /* Браузери створюють контекст у стані suspended, поки не буде жесту
      користувача. Тому будимо його при кожному відтворенні. */
-  function ensure() {
+  function ensure(): AudioContext | null {
     if (!ctx) {
-      const AC = window.AudioContext || window.webkitAudioContext;
+      const AC = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AC) return null;
-      try { ctx = new AC(); } catch (e) { return null; }
+      try { ctx = new AC(); } catch { return null; }
       master = ctx.createGain();
       master.gain.value = 0.26;
       master.connect(ctx.destination);
     }
-    if (ctx.state === 'suspended') ctx.resume();
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
     return ctx;
   }
 
-  function noise() {
+  function noise(c: AudioContext): AudioBuffer {
     if (!noiseBuf) {
-      const n = Math.floor(ctx.sampleRate * 0.5);
-      noiseBuf = ctx.createBuffer(1, n, ctx.sampleRate);
+      const n = Math.floor(c.sampleRate * 0.5);
+      noiseBuf = c.createBuffer(1, n, c.sampleRate);
       const d = noiseBuf.getChannelData(0);
       for (let i = 0; i < n; i++) d[i] = Math.random() * 2 - 1;
     }
     return noiseBuf;
   }
 
-  function tone(freq, dur, o) {
-    o = o || {};
-    if (!enabled || !ensure()) return;
+  function tone(freq: number, dur: number, o: ToneOpts = {}): void {
+    const ctx = enabled ? ensure() : null;
+    if (!ctx || !master) return;
     const t0 = ctx.currentTime + (o.at || 0);
     const osc = ctx.createOscillator();
     const g = ctx.createGain();
@@ -62,15 +60,15 @@ const SFX = (function () {
     osc.stop(t0 + dur + 0.03);
   }
 
-  function hiss(dur, o) {
-    o = o || {};
-    if (!enabled || !ensure()) return;
+  function hiss(dur: number, o: HissOpts = {}): void {
+    const ctx = enabled ? ensure() : null;
+    if (!ctx || !master) return;
     const t0 = ctx.currentTime + (o.at || 0);
     const src = ctx.createBufferSource();
     const flt = ctx.createBiquadFilter();
     const g = ctx.createGain();
 
-    src.buffer = noise();
+    src.buffer = noise(ctx);
     flt.type = o.filter || 'bandpass';
     flt.frequency.setValueAtTime(o.freq || 1200, t0);
     if (o.to) flt.frequency.exponentialRampToValueAtTime(o.to, t0 + dur);
@@ -86,7 +84,7 @@ const SFX = (function () {
     src.stop(t0 + dur + 0.03);
   }
 
-  const chord = (notes, step, dur, o) =>
+  const chord = (notes: number[], step: number, dur: number, o: ToneOpts) =>
     notes.forEach((f, i) => tone(f, dur, Object.assign({ at: i * step }, o)));
 
   const API = {
@@ -123,12 +121,12 @@ const SFX = (function () {
 
     /* Керування */
     isOn: () => enabled,
-    set(v) {
+    set(v: boolean) {
       enabled = !!v;
-      try { localStorage.setItem(KEY, enabled ? '1' : '0'); } catch (e) {}
+      setFlag(KEY, enabled);
       if (enabled) { ensure(); API.click(); }
     },
-    toggle() { API.set(!enabled); return enabled; },
+    toggle(): boolean { API.set(!enabled); return enabled; },
     /* Викликається на першому жесті: без цього контекст лишиться сплячим */
     unlock() { if (enabled) ensure(); }
   };
