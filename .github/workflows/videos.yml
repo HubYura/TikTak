@@ -1,0 +1,120 @@
+name: Render videos
+
+# Озвучує (Piper, ukrainian_tts) і рендерить (Blender) усі відеопояснення,
+# а потім комітить готові кліпи в public/videos тієї ж гілки.
+# Запуск: вручну (Actions → Render videos → Run workflow) або пушем зміни
+# сценаріїв/партитури в гілку claude/**.
+
+on:
+  workflow_dispatch:
+    inputs:
+      speaker:
+        description: 'Диктор ukrainian_tts (ім’я або номер; порожньо — типовий)'
+        required: false
+        default: ''
+      res:
+        description: 'Роздільність'
+        required: false
+        default: '960x540'
+  push:
+    branches: ['claude/**']
+    paths:
+      - 'video/clips.json'
+      - 'video/voice.py'
+      - 'video/blender/render.py'
+      - '.github/workflows/videos.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: videos-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  VOICE_URL: https://huggingface.co/rhasspy/piper-voices/resolve/main/uk/uk_UA/ukrainian_tts/medium
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: true
+      matrix:
+        part: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Встановити Blender (bpy), Piper, ffmpeg
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg libxrender1 libxxf86vm1 libxfixes3 libxi6 libxkbcommon0 libsm6 libgl1 libegl1
+          pip install -q bpy==5.0.1 piper-tts
+
+      - name: Завантажити голос ukrainian_tts
+        run: |
+          mkdir -p video/voices
+          curl -sSfL -o video/voices/uk_UA-ukrainian_tts-medium.onnx "$VOICE_URL/uk_UA-ukrainian_tts-medium.onnx"
+          curl -sSfL -o video/voices/uk_UA-ukrainian_tts-medium.onnx.json "$VOICE_URL/uk_UA-ukrainian_tts-medium.onnx.json"
+          python -c "import json;print('Диктори:', json.load(open('video/voices/uk_UA-ukrainian_tts-medium.onnx.json')).get('speaker_id_map'))"
+
+      - name: Вибрати свою частину кліпів
+        id: part
+        run: |
+          ids=$(python -c "import json;c=json.load(open('video/clips.json'));print(' '.join(x['id'] for i,x in enumerate(c) if i%4==${{ matrix.part }}))")
+          echo "ids=$ids" >> "$GITHUB_OUTPUT"
+          echo "Кліпи: $ids"
+
+      - name: Озвучити
+        run: |
+          SPK="${{ github.event.inputs.speaker }}"
+          python video/voice.py ${SPK:+--speaker "$SPK"} --only ${{ steps.part.outputs.ids }}
+
+      - name: Зрендерити
+        run: |
+          RES="${{ github.event.inputs.res }}"
+          python video/blender/render.py -- --engine CYCLES --samples 3 --res "${RES:-960x540}" --only ${{ steps.part.outputs.ids }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clips-${{ matrix.part }}
+          path: |
+            video/out/*/*.mp4
+            video/out/*/*.jpg
+            video/out/*/*.vtt
+            video/out/*/spans.json
+          retention-days: 7
+
+  publish:
+    needs: render
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: clips-*
+          path: video/out
+          merge-multiple: true
+
+      - name: Підготувати для сайту
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          python video/publish.py
+
+      - name: Закомітити кліпи
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/videos
+          if git diff --cached --quiet; then echo "Без змін"; exit 0; fi
+          git commit -m "Re-render explainer videos with Piper voice (ukrainian_tts)"
+          git push
