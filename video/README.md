@@ -18,7 +18,7 @@ src/core/video-beats.ts ┴─ npm run video:brief → clips.json
 | Blender 4.2+ | рендер сцен, редаговані `.blend` | blender.org (у вас уже є) |
 | Python 3.10+ | запуск скриптів | python.org |
 | Piper | український голос Тіка, офлайн | `pip install -r video/requirements.txt` |
-| Голос Piper | модель | [rhasspy/piper-voices → uk/uk_UA](https://huggingface.co/rhasspy/piper-voices/tree/main/uk/uk_UA): `ukrainian_tts/medium` (три диктори, `--speaker 0/1/2`) — завантажте `.onnx` і `.onnx.json` у `video/voices/` |
+| Голос Piper | модель **ukrainian_tts** | [rhasspy/piper-voices → uk/uk_UA/ukrainian_tts/medium](https://huggingface.co/rhasspy/piper-voices/tree/main/uk/uk_UA/ukrainian_tts/medium): завантажте `uk_UA-ukrainian_tts-medium.onnx` і `.onnx.json` у `video/voices/`. Послухати дикторів: [piper-samples](https://rhasspy.github.io/piper-samples/) |
 | ffmpeg (бажано) | трохи вищий «мультяшний» тон голосу | winget / brew / apt; без нього голос просто лишається як є |
 | LM Studio | редакторська перевірка сценаріїв | у вас уже є; увімкніть сервер (Developer → Start Server) |
 
@@ -29,9 +29,8 @@ npm run video:brief                                   # 1. сценарії → 
 
 python video/review.py --model bionic                 # 2. (необов’язково) зауваження → video/out/review.md
 
-python video/voice.py --model video/voices/uk_UA-ukrainian_tts-medium.onnx --speaker 1
-                                                      # 3. голос; послухайте кілька кліпів,
-                                                      #    підберіть --speaker і --length-scale
+python video/voice.py                                 # 3. голос Тіка (ukrainian_tts, диктор mykyta);
+                                                      #    інший: --speaker lada / tetiana / номер
 
 blender -b -P video/blender/render.py -- --only stage-4          # 4. пробний кліп
 blender -b -P video/blender/render.py -- --res 1920x1080         #    усі 21 кліп

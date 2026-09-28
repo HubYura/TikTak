@@ -5,7 +5,8 @@
 стрілок і рот Тіка, а субтитри виходять точними.
 
     pip install piper-tts
-    python video/voice.py --model voices/uk_UA-ukrainian_tts-medium.onnx --speaker 1
+    python video/voice.py                         # голос ukrainian_tts з video/voices/
+    python video/voice.py --speaker tetiana       # інший диктор: за іменем або номером
     python video/voice.py --silent            # без голосу: оцінка тривалості (для чернеток)
 
 Результат: video/out/<id>/voice.wav і video/out/<id>/spans.json
@@ -22,12 +23,29 @@ from array import array
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
+DEFAULT_MODEL = ROOT / 'voices' / 'uk_UA-ukrainian_tts-medium.onnx'
+DEFAULT_SPEAKER = 'mykyta'   # голос Тіка; змінюється через --speaker
 LEAD, GAP, TAIL = 0.6, 0.35, 0.9   # секунди тиші: перед першим реченням, між реченнями, в кінці
 
 
 def load_voice(model: str):
     from piper import PiperVoice  # type: ignore
     return PiperVoice.load(model)
+
+
+def resolve_speaker(model: str, speaker):
+    """Диктор за іменем (з .onnx.json) або номером. Для однодикторних моделей — None."""
+    cfg = Path(model + '.json')
+    ids = json.loads(cfg.read_text('utf-8')).get('speaker_id_map', {}) if cfg.exists() else {}
+    if not ids:
+        return None
+    if speaker is None:
+        speaker = DEFAULT_SPEAKER if DEFAULT_SPEAKER in ids else next(iter(ids))
+    if str(speaker).isdigit():
+        return int(speaker)
+    if speaker not in ids:
+        sys.exit(f'Диктора «{speaker}» немає. Доступні: ' + ', '.join(f'{k} ({v})' for k, v in ids.items()))
+    return ids[speaker]
 
 
 def synth(voice, text: str, speaker, length_scale: float):
@@ -67,8 +85,8 @@ def pitch_up(path: Path, factor: float) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('--model', help='шлях до .onnx голосу Piper (поруч має лежати .onnx.json)')
-    ap.add_argument('--speaker', type=int, default=None, help='номер диктора для багатоголосих моделей')
+    ap.add_argument('--model', default=str(DEFAULT_MODEL), help='шлях до .onnx голосу Piper (поруч має лежати .onnx.json)')
+    ap.add_argument('--speaker', default=None, help=f'диктор: ім’я або номер (типово {DEFAULT_SPEAKER})')
     ap.add_argument('--length-scale', type=float, default=1.12, help='>1 — повільніше (для дітей)')
     ap.add_argument('--pitch', type=float, default=1.08, help='підняття тону через ffmpeg; 1 — без змін')
     ap.add_argument('--silent', action='store_true', help='без синтезу: тиша й оцінена тривалість')
@@ -77,8 +95,9 @@ def main() -> None:
     ap.add_argument('--out', default=str(ROOT / 'out'))
     a = ap.parse_args()
 
-    if not a.silent and not a.model:
-        sys.exit('Потрібен --model (голос Piper) або --silent. Див. video/README.md')
+    if not a.silent and not Path(a.model).exists():
+        sys.exit(f'Немає голосу {a.model}. Завантажте ukrainian_tts (див. video/README.md) або запустіть з --silent.')
+    speaker = None if a.silent else resolve_speaker(a.model, a.speaker)
 
     clips = json.loads(Path(a.clips).read_text('utf-8'))
     voice = None if a.silent else load_voice(a.model)
@@ -92,7 +111,7 @@ def main() -> None:
         pcm.extend(silence(LEAD))
         for i, text in enumerate(clip['sentences']):
             if voice:
-                sr_i, part = synth(voice, text, a.speaker, a.length_scale)
+                sr_i, part = synth(voice, text, speaker, a.length_scale)
                 if i == 0 and sr_i != sr:  # перша фраза визначає частоту
                     sr, pcm = sr_i, array('h', bytes(int(sr_i * LEAD) * 2))
                 dur = len(part) / sr
