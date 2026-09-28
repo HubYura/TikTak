@@ -1,0 +1,88 @@
+{
+  "clips": {
+    "intro": {
+      "src": "intro.mp4",
+      "poster": "intro.jpg"
+    },
+    "stage-1": {
+      "src": "stage-1.mp4",
+      "poster": "stage-1.jpg"
+    },
+    "stage-2": {
+      "src": "stage-2.mp4",
+      "poster": "stage-2.jpg"
+    },
+    "stage-3": {
+      "src": "stage-3.mp4",
+      "poster": "stage-3.jpg"
+    },
+    "stage-4": {
+      "src": "stage-4.mp4",
+      "poster": "stage-4.jpg"
+    },
+    "stage-5": {
+      "src": "stage-5.mp4",
+      "poster": "stage-5.jpg"
+    },
+    "stage-6": {
+      "src": "stage-6.mp4",
+      "poster": "stage-6.jpg"
+    },
+    "stage-7": {
+      "src": "stage-7.mp4",
+      "poster": "stage-7.jpg"
+    },
+    "stage-8": {
+      "src": "stage-8.mp4",
+      "poster": "stage-8.jpg"
+    },
+    "stage-9": {
+      "src": "stage-9.mp4",
+      "poster": "stage-9.jpg"
+    },
+    "stage-10": {
+      "src": "stage-10.mp4",
+      "poster": "stage-10.jpg"
+    },
+    "stage-11": {
+      "src": "stage-11.mp4",
+      "poster": "stage-11.jpg"
+    },
+    "trap-hourNext": {
+      "src": "trap-hourNext.mp4",
+      "poster": "trap-hourNext.jpg"
+    },
+    "trap-swap": {
+      "src": "trap-swap.mp4",
+      "poster": "trap-swap.jpg"
+    },
+    "trap-decimal": {
+      "src": "trap-decimal.mp4",
+      "poster": "trap-decimal.jpg"
+    },
+    "trap-literal": {
+      "src": "trap-literal.mp4",
+      "poster": "trap-literal.jpg"
+    },
+    "trap-quarterDir": {
+      "src": "trap-quarterDir.mp4",
+      "poster": "trap-quarterDir.jpg"
+    },
+    "trap-halfCur": {
+      "src": "trap-halfCur.mp4",
+      "poster": "trap-halfCur.jpg"
+    },
+    "trap-ampm": {
+      "src": "trap-ampm.mp4",
+      "poster": "trap-ampm.jpg"
+    },
+    "trap-carry": {
+      "src": "trap-carry.mp4",
+      "poster": "trap-carry.jpg"
+    },
+    "parents": {
+      "src": "parents.mp4",
+      "poster": "parents.jpg"
+    }
+  }
+}

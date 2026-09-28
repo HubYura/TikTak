@@ -12,12 +12,14 @@ import {
   type ElapsedTask, type Option, type RoutineTask, type Trap
 } from '../core/questions';
 import { pick, rnd, shuffle } from '../core/rng';
+import { TRAP_VIDEOS } from '../core/videos';
 import { angleDist, angleOf, digital, fromDial, toDial } from '../core/time';
 import { SFX } from '../lib/audio';
 import { FX } from '../lib/fx';
 import { CX, CY, R } from '../scene/scene';
 import { bump, popover, say, speakNow } from './buddy';
 import { $, anyOf, app, h } from './state';
+import { videoButton } from './video';
 import { renderHands, setSky, showSun } from './view';
 
 type Track = { kind: 'level'; idx: number } | { kind: 'adv'; id: AdventureId };
@@ -227,6 +229,13 @@ function rightText(): string {
   return digital(t.t.end.h, t.t.end.m) + ' — ' + sayTime(t.t.end.h, t.t.end.m);
 }
 
+/** Після помилки — коротке відео саме про цю плутанину, якщо воно вже є. */
+function attachTrapVideo(trap: Trap | undefined): void {
+  if (!trap) return;
+  const b = videoButton(TRAP_VIDEOS[trap], '▶ Подивись, як це працює');
+  if (b) $('qFb').append(b);
+}
+
 function feedback(ok: boolean, html: string, title?: string): void {
   const fb = $('qFb');
   fb.hidden = false;
@@ -249,6 +258,8 @@ function choose(o: Option, btn: HTMLButtonElement, options: Option[]): void {
   feedback(ok, ' ' + (why ? why + ' ' : '') + (ok ? rightText() : 'Правильно: ' + rightText()));
   const exposed = options.map(x => x.trap).filter((x): x is Trap => !!x);
   finish(ok, exposed, ok ? undefined : o.trap, ok ? btn : null);
+  // Кнопку додаємо після finish: інакше її підпис потрапив би в озвучку пояснення
+  if (!ok) attachTrapVideo(o.trap);
 }
 
 function checkHands(): void {
@@ -267,6 +278,7 @@ function checkHands(): void {
     animateDial(target);
   }
   finish(ok, trapsFor('set', t.plan.m), trap, null);
+  if (!ok) attachTrapVideo(trap);
 }
 
 function giveUp(): void {

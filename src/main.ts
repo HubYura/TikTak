@@ -16,7 +16,10 @@ import { Voice } from './lib/voice';
 import { animateScene, buildScene } from './scene/scene';
 import { replay, say } from './ui/buddy';
 import { camera, cameraTick, initCamera, type Box } from './ui/camera';
-import { enterLearn, initLearn, learnFrame, setPlaying } from './ui/learn';
+import { enterLearn, initLearn, learnFrame, refreshStageVideo, setPlaying } from './ui/learn';
+import { INTRO } from './core/videos';
+import { Videos } from './lib/video';
+import { initVideo, videoButton } from './ui/video';
 import { initParent } from './ui/parent';
 import {
   awardBadges, enterPractice, initPractice, practiceFrame, renderScore, resetPracticeTrack, setOnRoundEnd
@@ -216,6 +219,16 @@ function frame(ts: number): void {
   }
   requestAnimationFrame(frame);
 }
+
+/* ---------- Відео ---------- */
+
+initVideo();
+Videos.onChange(() => {
+  refreshStageVideo();
+  const b = videoButton(INTRO, '▶ Знайомство з Тіком');
+  $('wVideo').replaceChildren(...(b ? [b] : []));
+});
+Videos.load(import.meta.env.VITE_VIDEO_BASE);
 
 /* ---------- Старт ---------- */
 

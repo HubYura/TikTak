@@ -6,6 +6,8 @@ import { blankProgress, dayKey } from '../core/progress';
 import type { Trap } from '../core/questions';
 import { SFX } from '../lib/audio';
 import { Voice } from '../lib/voice';
+import { PARENTS } from '../core/videos';
+import { videoButton } from './video';
 import { $, app, h } from './state';
 
 export const TRAP_INFO: Record<Trap, { title: string; good: string; looks: string; tip: string }> = {
@@ -167,6 +169,8 @@ export function openReport(onReset: () => void): void {
     return age <= 30 && d.asked > 0;
   }).length;
 
+  const pv = videoButton(PARENTS, '▶ Відео: ' + PARENTS.title);
+  if (pv) body.append(h('div', { class: 'r-video' }, pv));
   body.append(
     h('p', { class: 'r-note', text: '🔒 Усі дані зберігаються лише на цьому пристрої й нікуди не надсилаються.' }),
     h('div', { class: 'r-tiles' },

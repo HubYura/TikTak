@@ -4,8 +4,10 @@ import { STAGES, STAGE_SAY } from '../core/content';
 import { partOfDay, sayTime } from '../core/phrasing';
 import { digital, digital24 } from '../core/time';
 import { SFX } from '../lib/audio';
+import { STAGE_VIDEOS } from '../core/videos';
 import { say } from './buddy';
 import { $, app, h } from './state';
+import { videoButton } from './video';
 import { applyFocus, applyRevealSet, renderHands, setSky, showSun, visibleIds } from './view';
 
 let cur = 0;
@@ -92,6 +94,7 @@ export function goTo(i: number, quiet = false): void {
   $('stIdea').textContent = st.idea;
   $('stWarn').textContent = st.warn;
   $('stTry').textContent = st.todo;
+  refreshStageVideo();
   $('readout').hidden = !st.time;
 
   const rail = $('rail');
@@ -112,6 +115,13 @@ export function goTo(i: number, quiet = false): void {
 
   if (!st.day) { setSky(12); showSun(null); }
   renderLearn();
+}
+
+/** Кнопка відео етапу — лише коли кліп уже є у сховищі. */
+export function refreshStageVideo(): void {
+  const b = videoButton(STAGE_VIDEOS[cur], '▶ Відео');
+  if (b) b.addEventListener('click', () => setPlaying(false), { capture: true });
+  $('stVideo').replaceChildren(...(b ? [b] : []));
 }
 
 function renderLearn(): void {

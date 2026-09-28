@@ -13,3 +13,5 @@ node_modules/
 # Збірка
 dist/
 dev-dist/
+.env
+.env.local

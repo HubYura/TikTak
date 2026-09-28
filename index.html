@@ -64,6 +64,7 @@
         <nav class="rail" id="rail" aria-label="Етапи уроку"></nav>
         <div class="panel-head">
           <span class="chip" id="chip">Будівництво</span>
+          <span id="stVideo"></span>
           <h2 id="stTitle">—</h2>
         </div>
         <p class="desc" id="stDesc"></p>
@@ -151,6 +152,19 @@
       <button class="btn btn-go big" id="wLearn" type="button">📚 Вчитися</button>
       <button class="btn big" id="wPlay" type="button">🎮 Одразу грати</button>
     </div>
+    <div class="welcome-video" id="wVideo"></div>
+  </div>
+</div>
+
+<!-- Відеопояснення -->
+<div class="overlay" id="videoModal" hidden>
+  <div class="sheet video-sheet" role="dialog" aria-modal="true" aria-labelledby="vTitle">
+    <header class="video-head">
+      <span class="video-tik" data-tik="video" aria-hidden="true"></span>
+      <h2 id="vTitle">Відео</h2>
+      <button class="btn btn-sm" id="vClose" type="button" aria-label="Закрити відео">✕</button>
+    </header>
+    <div class="video-box" id="vBox"></div>
   </div>
 </div>
 
