@@ -3,128 +3,107 @@
     "intro": {
       "src": "intro.mp4",
       "poster": "intro.jpg",
-      "vtt": "intro.vtt",
-      "narrate": true
+      "vtt": "intro.vtt"
     },
     "parents": {
       "src": "parents.mp4",
       "poster": "parents.jpg",
-      "vtt": "parents.vtt",
-      "narrate": true
+      "vtt": "parents.vtt"
     },
     "stage-1": {
       "src": "stage-1.mp4",
       "poster": "stage-1.jpg",
-      "vtt": "stage-1.vtt",
-      "narrate": true
+      "vtt": "stage-1.vtt"
     },
     "stage-10": {
       "src": "stage-10.mp4",
       "poster": "stage-10.jpg",
-      "vtt": "stage-10.vtt",
-      "narrate": true
+      "vtt": "stage-10.vtt"
     },
     "stage-11": {
       "src": "stage-11.mp4",
       "poster": "stage-11.jpg",
-      "vtt": "stage-11.vtt",
-      "narrate": true
+      "vtt": "stage-11.vtt"
     },
     "stage-2": {
       "src": "stage-2.mp4",
       "poster": "stage-2.jpg",
-      "vtt": "stage-2.vtt",
-      "narrate": true
+      "vtt": "stage-2.vtt"
     },
     "stage-3": {
       "src": "stage-3.mp4",
       "poster": "stage-3.jpg",
-      "vtt": "stage-3.vtt",
-      "narrate": true
+      "vtt": "stage-3.vtt"
     },
     "stage-4": {
       "src": "stage-4.mp4",
       "poster": "stage-4.jpg",
-      "vtt": "stage-4.vtt",
-      "narrate": true
+      "vtt": "stage-4.vtt"
     },
     "stage-5": {
       "src": "stage-5.mp4",
       "poster": "stage-5.jpg",
-      "vtt": "stage-5.vtt",
-      "narrate": true
+      "vtt": "stage-5.vtt"
     },
     "stage-6": {
       "src": "stage-6.mp4",
       "poster": "stage-6.jpg",
-      "vtt": "stage-6.vtt",
-      "narrate": true
+      "vtt": "stage-6.vtt"
     },
     "stage-7": {
       "src": "stage-7.mp4",
       "poster": "stage-7.jpg",
-      "vtt": "stage-7.vtt",
-      "narrate": true
+      "vtt": "stage-7.vtt"
     },
     "stage-8": {
       "src": "stage-8.mp4",
       "poster": "stage-8.jpg",
-      "vtt": "stage-8.vtt",
-      "narrate": true
+      "vtt": "stage-8.vtt"
     },
     "stage-9": {
       "src": "stage-9.mp4",
       "poster": "stage-9.jpg",
-      "vtt": "stage-9.vtt",
-      "narrate": true
+      "vtt": "stage-9.vtt"
     },
     "trap-ampm": {
       "src": "trap-ampm.mp4",
       "poster": "trap-ampm.jpg",
-      "vtt": "trap-ampm.vtt",
-      "narrate": true
+      "vtt": "trap-ampm.vtt"
     },
     "trap-carry": {
       "src": "trap-carry.mp4",
       "poster": "trap-carry.jpg",
-      "vtt": "trap-carry.vtt",
-      "narrate": true
+      "vtt": "trap-carry.vtt"
     },
     "trap-decimal": {
       "src": "trap-decimal.mp4",
       "poster": "trap-decimal.jpg",
-      "vtt": "trap-decimal.vtt",
-      "narrate": true
+      "vtt": "trap-decimal.vtt"
     },
     "trap-halfCur": {
       "src": "trap-halfCur.mp4",
       "poster": "trap-halfCur.jpg",
-      "vtt": "trap-halfCur.vtt",
-      "narrate": true
+      "vtt": "trap-halfCur.vtt"
     },
     "trap-hourNext": {
       "src": "trap-hourNext.mp4",
       "poster": "trap-hourNext.jpg",
-      "vtt": "trap-hourNext.vtt",
-      "narrate": true
+      "vtt": "trap-hourNext.vtt"
     },
     "trap-literal": {
       "src": "trap-literal.mp4",
       "poster": "trap-literal.jpg",
-      "vtt": "trap-literal.vtt",
-      "narrate": true
+      "vtt": "trap-literal.vtt"
     },
     "trap-quarterDir": {
       "src": "trap-quarterDir.mp4",
       "poster": "trap-quarterDir.jpg",
-      "vtt": "trap-quarterDir.vtt",
-      "narrate": true
+      "vtt": "trap-quarterDir.vtt"
     },
     "trap-swap": {
       "src": "trap-swap.mp4",
       "poster": "trap-swap.jpg",
-      "vtt": "trap-swap.vtt",
-      "narrate": true
+      "vtt": "trap-swap.vtt"
     }
   }
 }
