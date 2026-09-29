@@ -19,3 +19,4 @@ dev-dist/
 # Рендери відео (важкі, викладаються у сховище, не в git)
 video/out/
 video/voices/
+__pycache__/
