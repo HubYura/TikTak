@@ -290,8 +290,22 @@ def build(clip: Clip, args):
     nt.links.new(em.outputs[0], out.inputs['Surface'])
     em.inputs['Color'].default_value = srgb('#8fd8f5')
     rect('Sky', 60, 40, bg_mat, coll, (0, 0, -5))
-    disc('Hill', 1, mat('Grass', COL['grass']), coll, (-1.5, -6.6, -4.8), sx=11, sy=2.6)
-    disc('HillBack', 1, mat('GrassD', COL['grassD']), coll, (6, -6.3, -4.9), sx=8, sy=2.4)
+    disc('HillBack', 1, mat('GrassD', COL['grassD']), coll, (6, -6.1, -4.9), sx=8, sy=2.9)
+    disc('Hill', 1, mat('Grass', COL['grass']), coll, (-1.5, -6.8, -4.8), sx=11, sy=3.3)
+
+    def tree(name, x, y, s, bush=False):
+        t = empty(name, coll, (x, y, -4.6))
+        if not bush:
+            rect(name + '.trunk', 0.28 * s, 1.1 * s, mat('Trunk', '#9a6136'), coll, (0, 0, 0), anchor_bottom=True, parent=t)
+        base = 0.0 if bush else 1.0 * s
+        for j, (dx, dy, r, col) in enumerate([(-0.45, 0.25, 0.55, '#5fb043'), (0.45, 0.25, 0.55, '#5fb043'),
+                                              (0, 0.65, 0.7, '#78c95b'), (-0.15, 0.95, 0.35, '#97df76')]):
+            disc(f'{name}.leaf{j}', r * s, mat('Leaf' + col, col), coll, (dx * s, base + dy * s, 0.01 * j), parent=t)
+        return t
+
+    tree('TreeL', -7.3, -3.5, 1.0)
+    tree('TreeR', 7.65, -3.4, 0.8)
+    tree('Bush', -1.9, -3.9, 0.7, bush=True)
     clouds = []
     for i, (x, y, s) in enumerate([(-6.5, 3.6, 1.0), (0.5, 4.1, 0.7), (6.8, 3.3, 0.9)]):
         c = empty(f'Cloud{i}', coll, (x, y, -4.5))
@@ -304,6 +318,9 @@ def build(clip: Clip, args):
     R = 3.1
     clock = empty('Clock', coll, (C[0], C[1], 0))
     disc('Bezel', R + 0.34, mat('Gold', COL['gold']), coll, (0, 0, 0.0), parent=clock)
+    # Світло зліва згори, тінь справа знизу — циферблат виглядає об'ємним
+    ring('BezelLight', R + 0.18, R + 0.34, mat('GoldLight', '#ffe596'), coll, (0, 0, 0.003), a0=270, a1=390, parent=clock)
+    ring('BezelShade', R + 0.18, R + 0.34, mat('GoldShade', COL['goldD']), coll, (0, 0, 0.003), a0=90, a1=210, parent=clock)
     disc('BezelIn', R + 0.17, mat('BezelDark', COL['bezel']), coll, (0, 0, 0.01), parent=clock)
     disc('Dial', R, mat('Dial', COL['dial']), coll, (0, 0, 0.02), parent=clock)
 
@@ -406,9 +423,24 @@ def build(clip: Clip, args):
 
     # ---------- Тік ----------
     T = (-4.9, -0.6)
+    ground_shadow = disc('Tik.shadow', 1, mat('GroundShadow', '#5a9e3c'), coll, (T[0], -3.5, -4.55), sx=1.5, sy=0.28)
     tik = empty('Tik', coll, (T[0], T[1], 0.5))
+    # Ноги з черевиками — Тік стоїть на пагорбі, а не висить у повітрі
+    for sgn in (-1, 1):
+        rect(f'Tik.leg{sgn}', 0.24, 1.1, mat('TikRim', COL['tikRim']), coll, (sgn * 0.6, -2.95, -0.02), anchor_bottom=True, parent=tik)
+        disc(f'Tik.shoe{sgn}', 0.22, mat('Shoe', '#26364a'), coll, (sgn * 0.72, -2.95, -0.015), sx=1.7, parent=tik)
+    # Руки: плече — порожній об'єкт, що обертається; рука дивиться вгору при куті 0
+    arms = {}
+    for sgn in (-1, 1):
+        sh = empty(f'Tik.shoulder{sgn}', coll, (sgn * 1.9, -0.45, -0.01), parent=tik)
+        rect(f'Tik.arm{sgn}', 0.24, 1.25, mat('TikRim', COL['tikRim']), coll, (0, 0, 0), anchor_bottom=True, parent=sh)
+        disc(f'Tik.gloveEdge{sgn}', 0.29, mat('Shoe', '#26364a'), coll, (0, 1.32, 0.001), parent=sh)
+        disc(f'Tik.glove{sgn}', 0.24, mat('Glove', '#ffffff'), coll, (0, 1.32, 0.002), parent=sh)
+        arms[sgn] = sh
     disc('Tik.rim', 2.12, mat('TikRim', COL['tikRim']), coll, (0, 0, 0), parent=tik)
-    disc('Tik.body', 1.98, mat('TikBody', COL['gold']), coll, (0, 0, 0.01), parent=tik)
+    disc('Tik.shade', 1.98, mat('TikShade', '#f0ae1e'), coll, (0, 0, 0.008), parent=tik)
+    disc('Tik.body', 1.9, mat('TikBody', COL['gold']), coll, (-0.07, 0.07, 0.01), parent=tik)
+    ring('Tik.light', 1.62, 1.84, mat('TikLight', '#ffe596'), coll, (-0.05, 0.05, 0.015), a0=285, a1=345, parent=tik)
     disc('Tik.face', 1.55, mat('TikFace', COL['tikFace']), coll, (0, 0, 0.02), parent=tik)
     rect('Tik.stem', 0.26, 0.55, mat('TikRim', COL['tikRim']), coll, (0, 2.0, -0.01), anchor_bottom=True, parent=tik)
     disc('Tik.bell', 0.3, mat('TikBody', COL['gold']), coll, (0, 2.62, 0), parent=tik)
@@ -516,6 +548,7 @@ def build(clip: Clip, args):
 
     # Рот і настрій
     mood_track = []  # (t0, t1, mood)
+    point_track = []  # (t0, t1, чи показує рукою на циферблат)
     labels = []
 
     for i, beat in enumerate(beats):
@@ -540,7 +573,12 @@ def build(clip: Clip, args):
                 fs = f0 + int((f1 - f0) * s / steps)
                 if day:
                     key_sky(fs, ms)
-            key_hands(f1, target, 'CONSTANT')
+            if interp == 'BEZIER':
+                # Легкий перельот і повернення — стрілка «доводиться», як у справжнього механізму
+                key_hands(f1, target + 0.8, 'BEZIER')
+                key_hands(f1 + max(2, fps // 8), target, 'CONSTANT')
+            else:
+                key_hands(f1, target, 'CONSTANT')
             if day:
                 key_sky(f0, cur)
             cur = target
@@ -579,6 +617,8 @@ def build(clip: Clip, args):
         if beat.get('label'):
             labels.append((beat['label'], f0, f1 + int(0.4 * fps)))
         mood_track.append((t0, t1, beat.get('mood', 'idle')))
+        pointing = bool(beat.get('glow') or beat.get('show') or target is not None)
+        point_track.append((t0, t1, pointing))
 
     # Підписи з білою «пігулкою»
     bpy.context.view_layer.update()
@@ -587,7 +627,9 @@ def build(clip: Clip, args):
         t = text(f'LabelText{j}', body, 0.62, label_mat, coll, (0, 0, 0.02), parent=lab)
         bpy.context.view_layer.update()
         w = max(1.2, t.dimensions.x + 0.7)
-        rect(f'LabelPill{j}', w, 0.95, pill_mat, coll, (0, 0, 0), parent=lab)
+        rect(f'LabelPill{j}', w - 0.95, 0.95, pill_mat, coll, (0, 0, 0), parent=lab)
+        for sgn in (-1, 1):
+            disc(f'LabelCap{j}.{sgn}', 0.475, pill_mat, coll, (sgn * (w - 0.95) / 2, 0, 0), parent=lab)
         for ob in [lab] + list(lab.children):
             key_visible(ob, 1, False)
         pop_in(lab, f0, fps)
@@ -636,6 +678,62 @@ def build(clip: Clip, args):
         tik.rotation_euler[2] = math.radians(3 * math.sin(tt * 1.7)) + (math.radians(-6 if m == 'oops' else 0))
         tik.keyframe_insert('location', frame=1 + k)
         tik.keyframe_insert('rotation_euler', index=2, frame=1 + k)
+    # Права рука показує на циферблат, коли там щось відбувається; ліва махає, коли Тік радіє
+    def points_at(tt):
+        return any(a <= tt <= b + 0.3 and p for a, b, p in point_track)
+
+    set_interp('BEZIER')
+    step_f = max(2, fps // 5)
+    last_r = last_l = last_look = None
+    for k in range(0, clip.frames + step_f, step_f):
+        tt = k / fps
+        pt = points_at(tt)
+        r_ang = -78 if pt else -160
+        m = mood_at(tt)
+        wave = m == 'happy' or (d['id'] == 'intro' and tt < 2.5)
+        l_ang = (28 + 22 * math.sin(tt * 9)) if wave else 160
+        look = 0.09 if pt else 0.0
+        if r_ang != last_r or pt:
+            arms[1].rotation_euler[2] = math.radians(r_ang + (3 * math.sin(tt * 3) if pt else 0))
+            arms[1].keyframe_insert('rotation_euler', index=2, frame=1 + k)
+            last_r = r_ang
+        if l_ang != last_l or wave:
+            arms[-1].rotation_euler[2] = math.radians(l_ang)
+            arms[-1].keyframe_insert('rotation_euler', index=2, frame=1 + k)
+            last_l = l_ang
+        if look != last_look:
+            eyes.location.x = look
+            eyes.keyframe_insert('location', index=0, frame=1 + k)
+            last_look = look
+
+    # Тінь стискається, коли Тік підстрибує
+    for k in range(0, clip.frames + fps, fps // 2):
+        m = mood_at(k / fps)
+        hop = m == 'happy' and (k // (fps // 2)) % 2 == 0
+        ground_shadow.scale = (1.5 * (0.75 if hop else 1), 0.28 * (0.75 if hop else 1), 1)
+        ground_shadow.keyframe_insert('scale', frame=1 + k)
+
+    # Іскорки навколо Тіка, коли він радіє
+    spark_mat = mat('Spark', COL['gold'])
+    n_spark = 0
+    for t0, t1, m in mood_track:
+        if m != 'happy':
+            continue
+        for j, (dx, dy, sz) in enumerate([(-2.6, 2.2, 0.32), (2.4, 2.6, 0.26), (-2.9, -0.6, 0.22), (2.7, 0.4, 0.3)]):
+            star = mesh_obj(f'Spark{n_spark}', [(0, sz), (sz * 0.28, sz * 0.28), (sz, 0), (sz * 0.28, -sz * 0.28),
+                                               (0, -sz), (-sz * 0.28, -sz * 0.28), (-sz, 0), (-sz * 0.28, sz * 0.28)],
+                            [tuple(range(8))], spark_mat, coll, (T[0] + dx, T[1] + dy, 0.6))
+            n_spark += 1
+            f_on = F(t0) + j * 3
+            pop_in(star, f_on, fps)
+            key_visible(star, min(sc.frame_end, F(t1) + int(0.5 * fps)), False)
+            set_interp('LINEAR')
+            star.rotation_euler[2] = 0
+            star.keyframe_insert('rotation_euler', index=2, frame=f_on)
+            star.rotation_euler[2] = math.radians(90)
+            star.keyframe_insert('rotation_euler', index=2, frame=F(t1) + int(0.5 * fps))
+
+    set_interp('BEZIER')
     for k in range(int(2.2 * fps), clip.frames, int(3.3 * fps)):
         eyes.scale = (1, 1, 1)
         eyes.keyframe_insert('scale', frame=k)

@@ -44,8 +44,19 @@ export interface SceneRefs {
   clouds: { node: SVGGElement; x: number; y: number; s: number }[];
   peeps: { node: SVGGElement; axis: number; t: number; speed: number }[];
   park: Record<string, SVGGElement>;
+  faceRefs: FaceRefs;
   anim: { wheel: SVGGElement; cabins: SVGGElement[]; horses: SVGGElement; water: SVGGElement[];
           balloon: SVGGElement; fireworks: SVGGElement };
+}
+
+export type FaceStyle = 'teach' | 'classic' | 'roman' | 'minimal';
+
+interface FaceRefs {
+  dial: SVGCircleElement; glass: SVGPathElement;
+  hourNums: SVGTextElement[]; minNums: SVGGElement; band: SVGGElement;
+  hourHand: SVGPolygonElement; minHand: SVGPolygonElement;
+  hub: SVGCircleElement;
+  hand: (len: number, halfW: number, tail: number) => string;
 }
 
 export function buildScene(svg: SVGSVGElement): SceneRefs {
@@ -335,8 +346,8 @@ export function buildScene(svg: SVGSVGElement): SceneRefs {
   el('circle', { cx: CX, cy: CY, r: R + 9, fill: C.goldDark }, gDial);
   el('circle', { cx: CX, cy: CY, r: R + 7, fill: C.gold }, gDial);
   el('circle', { cx: CX, cy: CY, r: R + 3.5, fill: C.bezel }, gDial);
-  el('circle', { cx: CX, cy: CY, r: R, fill: C.dial }, gDial);
-  el('path', {
+  const dialDisc = el('circle', { cx: CX, cy: CY, r: R, fill: C.dial }, gDial);
+  const glass = el('path', {
     d: `M ${CX - R * 0.82} ${CY - R * 0.3} A ${R} ${R} 0 0 1 ${CX + R * 0.3} ${CY - R * 0.82} ` +
        `A ${R * 1.5} ${R * 1.5} 0 0 0 ${CX - R * 0.82} ${CY - R * 0.3} Z`,
     fill: '#dff1ff', opacity: 0.55
@@ -375,7 +386,7 @@ export function buildScene(svg: SVGSVGElement): SceneRefs {
 
   // Числа годин — далеко від центру, щоб «11», «12» і «1» не злипались
   const gNh = group('fNumsHour', face);
-  const nhKids: SVGElement[] = [];
+  const nhKids: SVGTextElement[] = [];
   for (let n = 1; n <= 12; n++) {
     const [x, y] = polar(n * 30, R - 41);
     nhKids.push(text(x, y + 1, String(n), 22, C.ink, 800, gNh));
@@ -400,12 +411,12 @@ export function buildScene(svg: SVGSVGElement): SceneRefs {
 
   const gH = group('fHour', face);
   const hourHand = el('g', {}, gH);
-  poly(hand(50, 7.5, 12), C.hourHand, hourHand, { stroke: C.hourHandD, 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
+  const hourPoly = poly(hand(50, 7.5, 12), C.hourHand, hourHand, { stroke: C.hourHandD, 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
   reg('fHour', gH);
 
   const gM = group('fMin', face);
   const minHand = el('g', {}, gM);
-  poly(hand(R - 6, 5, 16), C.minHand, minHand, { stroke: C.minHandD, 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
+  const minPoly = poly(hand(R - 6, 5, 16), C.minHand, minHand, { stroke: C.minHandD, 'stroke-width': 2.5, 'stroke-linejoin': 'round' });
   reg('fMin', gM);
 
   const gS = group('fSec', face);
@@ -415,7 +426,7 @@ export function buildScene(svg: SVGSVGElement): SceneRefs {
   reg('fSec', gS);
 
   const gHub = group('fHub', face);
-  el('circle', { cx: CX, cy: CY, r: 9, fill: C.bezel }, gHub);
+  const hubDisc = el('circle', { cx: CX, cy: CY, r: 9, fill: C.bezel }, gHub);
   el('circle', { cx: CX, cy: CY, r: 4.5, fill: C.gold }, gHub);
   reg('fHub', gHub);
 
@@ -448,7 +459,11 @@ export function buildScene(svg: SVGSVGElement): SceneRefs {
   return {
     svg, parts, skyA, skyB, hourHand, minHand, secHand, face, world, grab,
     sunInner, sunBody, sunGlow, stars, clouds, peeps, park,
-    anim: { wheel, cabins, horses, water, balloon, fireworks }
+    anim: { wheel, cabins, horses, water, balloon, fireworks },
+    faceRefs: {
+      dial: dialDisc, glass, hourNums: nhKids, minNums: gNm, band: gBand, hourHand: hourPoly, minHand: minPoly, hub: hubDisc,
+      hand: (len, halfW, tail) => hand(len, halfW, tail).map(p => p.join(',')).join(' ')
+    }
   };
 }
 
@@ -516,4 +531,60 @@ export function placeSun(S: SceneRefs, mins: number): void {
     S.sunGlow.setAttribute('fill', '#c9d8ff');
     place(80 + q * 740, 165 - Math.sin(q * Math.PI) * 118);
   }
+}
+
+/* ---------- Стилі циферблата ----------
+   Навчальний циферблат — кольорові стрілки й сині хвилини. Справжні годинники
+   такими не бувають, тож у пригоді «Справжні годинники» підказки поступово зникають. */
+
+const ROMAN = ['XII', 'I', 'II', 'III', 'IIII', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI'];
+
+export const FACE_NAMES: Record<FaceStyle, string> = {
+  teach: 'Навчальний годинник', classic: 'Звичайний настінний годинник',
+  roman: 'Годинник із римськими цифрами', minimal: 'Годинник без цифр'
+};
+
+export function setFaceStyle(S: SceneRefs, style: FaceStyle): void {
+  const f = S.faceRefs;
+  const teach = style === 'teach';
+  const dark = style === 'roman' ? '#2b2118' : '#1d2b3a';
+  f.dial.setAttribute('fill', style === 'roman' ? '#f6ecd6' : style === 'classic' ? '#fffdf6' : C.dial);
+  f.glass.style.display = teach ? '' : 'none';
+  f.minNums.style.display = teach ? '' : 'none';
+  f.band.style.display = teach ? '' : 'none';
+  f.hourNums.forEach((t, i) => {
+    t.style.display = style === 'minimal' ? 'none' : '';
+    t.textContent = style === 'roman' ? ROMAN[(i + 1) % 12] : String(i + 1);
+    t.setAttribute('font-size', style === 'roman' ? '16' : '22');
+    t.setAttribute('font-family', style === 'teach' ? 'Nunito, system-ui, sans-serif' : 'Georgia, "Times New Roman", serif');
+    t.setAttribute('font-weight', style === 'teach' ? '800' : '700');
+    t.setAttribute('fill', style === 'roman' ? dark : C.ink);
+  });
+  // Стрілки: у навчальному — кольорові й товсті; у справжніх — темні, хвилинна тонша
+  f.hourHand.setAttribute('points', teach ? f.hand(50, 7.5, 12) : f.hand(48, 6, 10));
+  f.minHand.setAttribute('points', teach ? f.hand(R - 6, 5, 16) : f.hand(R - 8, 3.2, 14));
+  f.hourHand.setAttribute('fill', teach ? C.hourHand : dark);
+  f.hourHand.setAttribute('stroke', teach ? C.hourHandD : dark);
+  f.minHand.setAttribute('fill', teach ? C.minHand : dark);
+  f.minHand.setAttribute('stroke', teach ? C.minHandD : dark);
+  f.hub.setAttribute('fill', teach ? C.bezel : dark);
+}
+
+/** Секундомір для «Скільки триває хвилина?»: без годинної й хвилинної стрілок,
+    із зеленим сектором «скільки треба було» (0 — сховати). */
+export function setStopwatch(S: SceneRefs, on: boolean, targetSec = 0): void {
+  S.parts.fHour.el.style.display = on ? 'none' : '';
+  S.parts.fMin.el.style.display = on ? 'none' : '';
+  let arc = S.face.querySelector<SVGPathElement>('#targetArc');
+  if (!arc) {
+    arc = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    arc.id = 'targetArc';
+    arc.setAttribute('fill', '#22b865');
+    arc.setAttribute('opacity', '0.28');
+    S.face.insertBefore(arc, S.parts.fSec.el);
+  }
+  if (!on || !targetSec) { arc.setAttribute('d', ''); return; }
+  const a = Math.min(359.9, targetSec * 6), r = R - 8;
+  const [x, y] = polar(a, r);
+  arc.setAttribute('d', `M ${CX} ${CY} L ${CX} ${CY - r} A ${r} ${r} 0 ${a > 180 ? 1 : 0} 1 ${x} ${y} Z`);
 }

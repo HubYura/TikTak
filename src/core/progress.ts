@@ -4,6 +4,9 @@ import { TRAPS, type Trap } from './questions';
 
 export type TaskKind = 'read' | 'say' | 'set';
 
+export const ADVENTURE_IDS = ['routine', 'elapsed', 'faces', 'feel'] as const;
+export type AdventureId = typeof ADVENTURE_IDS[number];
+
 export interface LevelRec { stars: number; best: number; asked: number; right: number }
 export interface TrapStat { seen: number; fell: number }
 export interface ReviewItem { h: number; m: number; kind: TaskKind; level: number; due: number }
@@ -14,7 +17,7 @@ export interface Progress {
   unlocked: number;
   level: number;
   levels: LevelRec[];
-  adventures: { routine: LevelRec; elapsed: LevelRec };
+  adventures: Record<AdventureId, LevelRec>;
   seen: number[];
   badges: string[];
   park: string[];            // атракціони, які вже відсвяткували
@@ -37,7 +40,7 @@ export function blankProgress(levels: number): Progress {
     unlocked: 0,
     level: 0,
     levels: Array.from({ length: levels }, rec),
-    adventures: { routine: rec(), elapsed: rec() },
+    adventures: Object.fromEntries(ADVENTURE_IDS.map(id => [id, rec()])) as Record<AdventureId, LevelRec>,
     seen: [],
     badges: [],
     park: [],
@@ -78,7 +81,7 @@ export function migrate(raw: unknown, levels: number): Progress | null {
                  bestStreak: num(t.bestStreak), fixed: num(t.fixed) };
   }
   if (isObj(raw.adventures)) {
-    for (const k of ['routine', 'elapsed'] as const) {
+    for (const k of ADVENTURE_IDS) {
       const a = raw.adventures[k];
       if (isObj(a)) p.adventures[k] = { stars: num(a.stars), best: num(a.best), asked: num(a.asked), right: num(a.right) };
     }

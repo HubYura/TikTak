@@ -13,7 +13,7 @@ import { logTime } from './core/progress';
 import { SFX } from './lib/audio';
 import { FX, reducedMotion } from './lib/fx';
 import { Voice } from './lib/voice';
-import { animateScene, buildScene } from './scene/scene';
+import { animateScene, buildScene, setFaceStyle, setStopwatch } from './scene/scene';
 import { replay, say } from './ui/buddy';
 import { camera, cameraTick, initCamera, type Box } from './ui/camera';
 import { enterLearn, initLearn, learnFrame, refreshStageVideo, setPlaying } from './ui/learn';
@@ -115,6 +115,8 @@ function setMode(m: Mode): void {
 
   if (learning) {
     app.S.grab.style.display = 'none';
+    setFaceStyle(app.S, 'teach');
+    setStopwatch(app.S, false);
     enterLearn();
   } else {
     setPlaying(false);

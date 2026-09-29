@@ -811,3 +811,23 @@ button { font: inherit; color: inherit; }
 .video-box video { display: block; width: 100%; max-height: 72dvh; background: #0e1a2b; }
 .video-box video::cue { font-family: var(--font); font-size: 1.05em; font-weight: 800; background: rgba(0, 0, 0, .7); }
 .v-fallback { margin: 0; padding: 26px; color: #fff; font-size: 19px; line-height: 1.5; }
+
+/* ---------- «Скільки триває хвилина?» ---------- */
+
+.opts.timer { grid-template-columns: 1fr; }
+.timer-btn {
+  min-height: 84px;
+  font-size: 30px;
+  background: var(--green);
+  color: #fff;
+  box-shadow: 0 6px 0 var(--green-d), 0 8px 20px rgba(34, 184, 101, .3);
+}
+.timer-btn:hover:not(:disabled) { background: #29c76f; }
+.timer-btn.running {
+  background: var(--red);
+  box-shadow: 0 6px 0 var(--red-d);
+  animation: breathe 1.6s ease-in-out infinite;
+}
+.timer-btn:disabled { background: var(--surf); color: var(--txt); box-shadow: 0 5px 0 var(--surf-3); }
+@keyframes breathe { 50% { transform: scale(1.03); } }
+@media (prefers-reduced-motion: reduce) { .timer-btn.running { animation: none; } }

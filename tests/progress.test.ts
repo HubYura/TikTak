@@ -22,6 +22,8 @@ describe('прогрес', () => {
     expect(p.welcomed).toBe(true);
     expect(p.badges).toEqual([]);
     expect(p.traps.swap).toEqual({ seen: 0, fell: 0 });
+    expect(p.adventures.feel).toEqual({ stars: 0, best: 0, asked: 0, right: 0 });
+    expect(p.adventures.faces.stars).toBe(0);
   });
 
   it('відкидає несумісне й не падає на смітті', () => {
