@@ -1,0 +1,84 @@
+name: Voice samples
+
+# Той самий текст різними українськими голосами → docs/voice-samples/*.mp3 у цій гілці.
+# Потрібно, щоб обрати голос Тіка на слух.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+    paths:
+      - 'video/voice_samples.py'
+      - '.github/workflows/voice-samples.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: voice-samples-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sample:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - engine: piper
+            py: '3.11'
+            deps: piper-tts numpy
+          - engine: espnet
+            py: '3.10'
+            deps: git+https://github.com/robinhad/ukrainian-tts.git numpy
+          - engine: mms
+            py: '3.11'
+            deps: torch transformers numpy --extra-index-url https://download.pytorch.org/whl/cpu
+          - engine: styletts2
+            py: '3.11'
+            deps: gradio_client numpy
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.py }}
+      - name: Залежності
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg espeak-ng
+          pip install -q ${{ matrix.deps }}
+      - name: Голос ukrainian_tts для Piper
+        if: matrix.engine == 'piper'
+        run: |
+          U=https://huggingface.co/rhasspy/piper-voices/resolve/main/uk/uk_UA/ukrainian_tts/medium
+          mkdir -p video/voices
+          curl -sSfL -o video/voices/uk_UA-ukrainian_tts-medium.onnx "$U/uk_UA-ukrainian_tts-medium.onnx"
+          curl -sSfL -o video/voices/uk_UA-ukrainian_tts-medium.onnx.json "$U/uk_UA-ukrainian_tts-medium.onnx.json"
+      - name: Синтез
+        run: python video/voice_samples.py --engine ${{ matrix.engine }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voice-${{ matrix.engine }}
+          path: docs/voice-samples/*.mp3
+
+  publish:
+    needs: sample
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: voice-*
+          path: docs/voice-samples
+          merge-multiple: true
+      - name: Закомітити
+        run: |
+          ls -la docs/voice-samples || exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/voice-samples
+          if git diff --cached --quiet; then echo "Без змін"; exit 0; fi
+          git commit -m "Add Ukrainian voice samples for comparison"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
