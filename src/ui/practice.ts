@@ -3,7 +3,8 @@
 import { planTask, recordTraps, scheduleReview, tooSimilar, type Plan, type Recent } from '../core/adaptive';
 import {
   ADVENTURES, BADGES, CHEER_SAY, CHEER_UP, LEVELS, MAX_STARS, PASS, PRAISE, PRAISE_SAY, ROUND,
-  PARK, nextAttraction, starsFor, totalStars, type AdventureId
+  PARK, RESET_SAY, ROUND_FAIL_SAY, ROUND_PASS_SAY, STAGE_SAY, VOICE_ON_SAY, badgeLine, nextAttraction, parkLine, starsFor, totalStars,
+  unlockLine, unlockWhat, type AdventureId
 } from '../core/content';
 import { partOfDay, sayTime } from '../core/phrasing';
 import { logAnswer, type LevelRec } from '../core/progress';
@@ -405,7 +406,10 @@ function finish(ok: boolean, exposed: Trap[], fell: Trap | undefined, srcEl: Ele
     say(dunno ? 'Нічого страшного! Подивись пояснення — наступного разу вийде.' : anyOf(CHEER_SAY), dunno ? 'think' : 'oops', 2400, false);
   }
   // Пояснення озвучуємо, а не лише показуємо — 6-річні ще погано читають
-  speakNow(($('qFb').textContent || '').replace(/^[✅🤔💡]\s*/u, ''));
+  // Заголовок («Не зовсім») — окремим реченням, інакше він зливається з поясненням
+  const fb = $('qFb'), title = fb.querySelector('b')?.textContent || '';
+  const body = (fb.textContent || '').slice(title.length).trim();
+  speakNow(title.replace(/^[✅🤔💡]\s*/u, '').replace(/[^.!?]$/, '$&.') + ' ' + body);
 
   round.push(ok);
   p.totals.asked++;
@@ -457,9 +461,7 @@ function finishRound(): void {
   let unlockedNow = '';
   if (track.kind === 'level' && right >= PASS && track.idx === p.unlocked && track.idx < LEVELS.length - 1) {
     p.unlocked = track.idx + 1;
-    unlockedNow = LEVELS[p.unlocked].name;
-    const adv = ADVENTURES.find(a => a.needs === p.unlocked);
-    if (adv) unlockedNow += '» і пригоду «' + adv.name;
+    unlockedNow = unlockWhat(LEVELS[p.unlocked].name, ADVENTURES.find(a => a.needs === p.unlocked)?.name);
   }
   app.save();
 
@@ -486,10 +488,10 @@ function finishRound(): void {
     FX.cheer(6);
     FX.buzz([30, 50, 30, 50, 80]);
     popover(unlockedNow ? '🎉 Нове відкрито!' : '⭐'.repeat(Math.max(1, stars)));
-    say(unlockedNow ? 'Відкрито «' + unlockedNow + '»! Спробуємо?' : 'Раунд пройдено! Хочеш ще?', 'cheer', 3200);
+    say(unlockedNow ? unlockLine(unlockedNow) : ROUND_PASS_SAY, 'cheer', 3200);
   } else {
     SFX.star();
-    say('Ще один раунд — і все вийде. Я поруч!', 'happy', 2600);
+    say(ROUND_FAIL_SAY, 'happy', 2600);
   }
 
   round = [];
@@ -608,7 +610,7 @@ export function awardBadges(): void {
     FX.cheer(4);
     FX.buzz([30, 40, 30, 40, 60]);
     popover(b.ico + ' ' + b.nm);
-    say('Новий значок: «' + b.nm + '»! Ти молодчина.', 'cheer', 3000);
+    say(badgeLine(b.nm), 'cheer', 3000);
   }, 900);
 }
 
@@ -774,4 +776,60 @@ function initDrag(): void {
 
 export function resetPracticeTrack(): void {
   track = { kind: 'level', idx: 0 };
+}
+
+/* ---------- Збирач фраз для озвучки (лише в режимі розробки) ----------
+   scripts/harvest-speech.mjs викликає __harvestSpeech(n): гра сама відповідає на n випадкових
+   завдань у всіх рівнях і пригодах, а все, що Тік мав сказати, падає в window.__spoken. */
+
+if (import.meta.env.DEV) {
+  (window as unknown as { __harvestSpeech: (n: number) => void }).__harvestSpeech = (n: number) => {
+    const tracks: Track[] = [
+      ...LEVELS.map((_, idx) => ({ kind: 'level' as const, idx })),
+      ...ADVENTURES.map(a => ({ kind: 'adv' as const, id: a.id }))
+    ];
+    for (let i = 0; i < n; i++) {
+      track = pick(tracks);
+      round = [];
+      newTask();
+      const t = task!;
+      const r = Math.random();
+      if (r < 0.2 && !(t.type === 'feel' && t.t.mode === 'estimate')) {
+        giveUp();
+      } else if (t.type === 'clock' && t.plan.kind === 'set') {
+        const snap = t.plan.level != null ? LEVELS[t.plan.level].snap : 5;
+        dial = raw = r < 0.5 ? toDial(t.plan.h, t.plan.m) : Math.round(rnd(720) / snap) * snap % 720;
+        checkHands();
+      } else if (t.type === 'feel' && t.t.mode === 'estimate') {
+        const btn = $('qOpts').querySelector('button') as HTMLButtonElement;
+        toggleTimer(btn);
+        timerStart = performance.now() - t.t.seconds * (0.4 + Math.random() * 1.2) * 1000;
+        toggleTimer(btn);
+      } else {
+        const opts = [...$('qOpts').querySelectorAll('button')] as HTMLButtonElement[];
+        pick(opts).click();
+      }
+      if (Math.random() < 0.1) {
+        round = Array.from({ length: ROUND }, () => Math.random() < 0.7);
+        finishRound();
+      }
+    }
+    // Усі 720 положень стрілок — у тих самих зворотах, що й у завданнях, щоб жоден час не лишився без голосу
+    for (let hh = 1; hh <= 12; hh++) {
+      for (let mm = 0; mm < 60; mm++) {
+        speakNow('Постав стрілки на ' + sayTime(hh, mm) + '.');
+        speakNow('Правильно: ' + digital(hh, mm) + ' — ' + sayTime(hh, mm));
+        speakNow('Ти поставив(-ла) ' + digital(hh, mm) + ', а треба ' + digital(hh, mm) + ' — ' + sayTime(hh, mm) + '.');
+        speakNow('Стрілки стоять правильно: ' + sayTime(hh, mm) + '.');
+      }
+    }
+    // Репліки поза завданнями
+    STAGE_SAY.forEach(s => speakNow(s));
+    [ROUND_PASS_SAY, ROUND_FAIL_SAY, VOICE_ON_SAY, RESET_SAY].forEach(s => speakNow(s));
+    BADGES.forEach(b => speakNow(badgeLine(b.nm)));
+    PARK.forEach(a => speakNow(parkLine(a.name)));
+    LEVELS.forEach((l, i) => {
+      speakNow(unlockLine(unlockWhat(l.name, ADVENTURES.find(a => a.needs === i)?.name)));
+    });
+  };
 }

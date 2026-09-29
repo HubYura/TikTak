@@ -8,7 +8,7 @@ import '@fontsource/nunito/latin-800.css';
 import '@fontsource/nunito/latin-900.css';
 import './styles/main.css';
 
-import { PARK } from './core/content';
+import { PARK, RESET_SAY, VOICE_ON_SAY, parkLine } from './core/content';
 import { logTime } from './core/progress';
 import { SFX } from './lib/audio';
 import { FX, reducedMotion } from './lib/fx';
@@ -86,7 +86,7 @@ $('btnVoice').addEventListener('click', () => {
   app.save();
   paintVoice();
   if (!app.p.settings.voice) Voice.stop();
-  say(app.p.settings.voice ? 'Тепер я говорю вголос!' : 'Добре, я мовчатиму.', 'happy', 1400);
+  say(app.p.settings.voice ? VOICE_ON_SAY : 'Добре, я мовчатиму.', 'happy', 1400);
 });
 $('btnReplay').addEventListener('click', replay);
 Voice.onChange(paintVoice);
@@ -156,7 +156,7 @@ function celebratePark(): void {
     $('ptIco').textContent = a.ico;
     $('ptText').textContent = 'У твоєму парку з’явився атракціон «' + a.name + '». Збирай зірки — парк ростиме далі!';
     $('parkToast').hidden = false;
-    say('Дивись! У парку тепер ' + a.name.toLowerCase() + '!', 'cheer', 3000);
+    say(parkLine(a.name), 'cheer', 3000);
     $('ptOk').focus();
   }, 2200);
 }
@@ -173,7 +173,7 @@ initParent(() => {
   applyPark();
   renderScore();
   setMode(app.mode);
-  say('Починаємо з чистого аркуша!', 'happy', 2000);
+  say(RESET_SAY, 'happy', 2000);
 });
 
 /* ---------- Привітання ---------- */
@@ -232,6 +232,7 @@ Videos.onChange(() => {
 });
 // Типово — тека /videos/ на самому сайті; окреме сховище задається через VITE_VIDEO_BASE
 Videos.load(import.meta.env.VITE_VIDEO_BASE || '/videos/');
+Voice.load('/voice/');
 
 /* ---------- Старт ---------- */
 
