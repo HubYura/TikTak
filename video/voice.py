@@ -1,12 +1,16 @@
-"""Озвучка Тіка через Piper — локально, офлайн.
+"""Озвучка Тіка — локально, офлайн.
+
+Типово — ukrainian-tts (ESPnet, голос Лада) з наголосами зі словника: вона звучить природніше,
+ніж Piper, бо Piper бере наголоси з espeak і часто їх плутає. Piper лишився як запасний рушій.
 
 Для кожного кліпу з video/clips.json синтезує речення окремо й склеює їх із паузами.
 Так ми точно знаємо, коли звучить кожне речення, — Blender синхронізує з цим рух
 стрілок і рот Тіка, а субтитри виходять точними.
 
-    pip install piper-tts
-    python video/voice.py                         # голос ukrainian_tts з video/voices/
-    python video/voice.py --speaker tetiana       # інший диктор: за іменем або номером
+    pip install git+https://github.com/robinhad/ukrainian-tts.git   # Python 3.10
+    python video/voice.py                         # Лада (ukrainian-tts)
+    python video/voice.py --speaker Tetiana       # інший голос: Lada, Tetiana, Mykyta, Oleksa, Dmytro
+    python video/voice.py --engine piper          # Piper ukrainian_tts з video/voices/
     python video/voice.py --silent            # без голосу: оцінка тривалості (для чернеток)
 
 Результат: video/out/<id>/voice.wav і video/out/<id>/spans.json
@@ -24,7 +28,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_MODEL = ROOT / 'voices' / 'uk_UA-ukrainian_tts-medium.onnx'
-DEFAULT_SPEAKER = 'mykyta'   # голос Тіка; змінюється через --speaker
+DEFAULT_SPEAKER = 'mykyta'   # диктор Piper; змінюється через --speaker
+ESPNET_SPEAKER = 'Lada'      # голос Тіка (обрано на слух серед зразків у docs/voice-samples)
 LEAD, GAP, TAIL = 0.6, 0.35, 0.9   # секунди тиші: перед першим реченням, між реченнями, в кінці
 
 
@@ -65,6 +70,33 @@ def synth(voice, text: str, speaker, length_scale: float):
         return voice.config.sample_rate, pcm
 
 
+class Espnet:
+    """ukrainian-tts: голоси Lada, Tetiana, Mykyta, Oleksa, Dmytro; наголоси зі словника."""
+
+    def __init__(self, speaker):
+        from ukrainian_tts.tts import TTS, Voices  # type: ignore
+        names = {v.value.lower(): v.value for v in Voices}
+        key = str(speaker or ESPNET_SPEAKER).lower()
+        if key not in names:
+            sys.exit(f'Голосу «{speaker}» немає. Доступні: ' + ', '.join(names.values()))
+        self.voice = names[key]
+        self.tts = TTS(device='cpu')
+
+    def synth(self, text: str, length_scale: float, sr: int = 22050):
+        """ukrainian-tts пише WAV (часто float32) — ffmpeg зводить до int16 і сповільнює темп без зміни тону."""
+        import tempfile
+        from ukrainian_tts.tts import Stress  # type: ignore
+        with tempfile.NamedTemporaryFile(suffix='.wav') as tmp:
+            with open(tmp.name, 'wb') as f:
+                _, accented = self.tts.tts(text, self.voice, Stress.Dictionary.value, f)
+            print('   ', accented)
+            raw = subprocess.run(['ffmpeg', '-loglevel', 'error', '-i', tmp.name, '-af', f'atempo={1 / length_scale:.4f}',
+                                  '-ac', '1', '-ar', str(sr), '-f', 's16le', '-'], capture_output=True, check=True).stdout
+        pcm = array('h')
+        pcm.frombytes(raw)
+        return sr, pcm
+
+
 def estimate(text: str) -> float:
     """Дитячий темп: ~2,2 слова на секунду."""
     return max(1.0, len(text.split()) / 2.2)
@@ -85,22 +117,27 @@ def pitch_up(path: Path, factor: float) -> None:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('--engine', choices=['espnet', 'piper'], default='espnet', help='рушій синтезу (типово ukrainian-tts)')
     ap.add_argument('--model', default=str(DEFAULT_MODEL), help='шлях до .onnx голосу Piper (поруч має лежати .onnx.json)')
-    ap.add_argument('--speaker', default=None, help=f'диктор: ім’я або номер (типово {DEFAULT_SPEAKER})')
-    ap.add_argument('--length-scale', type=float, default=1.12, help='>1 — повільніше (для дітей)')
-    ap.add_argument('--pitch', type=float, default=1.08, help='підняття тону через ffmpeg; 1 — без змін')
+    ap.add_argument('--speaker', default=None, help=f'диктор: ім’я або номер (типово {ESPNET_SPEAKER} / {DEFAULT_SPEAKER} для Piper)')
+    ap.add_argument('--length-scale', type=float, default=None, help='>1 — повільніше (типово 1.0 / 1.12 для Piper)')
+    ap.add_argument('--pitch', type=float, default=1.0, help='підняття тону через ffmpeg; 1 — без змін (спотворює голос)')
     ap.add_argument('--silent', action='store_true', help='без синтезу: тиша й оцінена тривалість')
     ap.add_argument('--only', nargs='*', help='лише ці id кліпів')
     ap.add_argument('--clips', default=str(ROOT / 'clips.json'))
     ap.add_argument('--out', default=str(ROOT / 'out'))
     a = ap.parse_args()
 
-    if not a.silent and not Path(a.model).exists():
+    piper = a.engine == 'piper'
+    if a.length_scale is None:
+        a.length_scale = 1.12 if piper else 1.0
+    if not a.silent and piper and not Path(a.model).exists():
         sys.exit(f'Немає голосу {a.model}. Завантажте ukrainian_tts (див. video/README.md) або запустіть з --silent.')
-    speaker = None if a.silent else resolve_speaker(a.model, a.speaker)
+    speaker = resolve_speaker(a.model, a.speaker) if not a.silent and piper else None
 
     clips = json.loads(Path(a.clips).read_text('utf-8'))
-    voice = None if a.silent else load_voice(a.model)
+    voice = None if a.silent else load_voice(a.model) if piper else Espnet(a.speaker)
+    say = (lambda text: synth(voice, text, speaker, a.length_scale)) if piper else (lambda text: voice.synth(text, a.length_scale))
 
     for clip in clips:
         if a.only and clip['id'] not in a.only:
@@ -111,7 +148,7 @@ def main() -> None:
         pcm.extend(silence(LEAD))
         for i, text in enumerate(clip['sentences']):
             if voice:
-                sr_i, part = synth(voice, text, speaker, a.length_scale)
+                sr_i, part = say(text)
                 if i == 0 and sr_i != sr:  # перша фраза визначає частоту
                     sr, pcm = sr_i, array('h', bytes(int(sr_i * LEAD) * 2))
                 dur = len(part) / sr

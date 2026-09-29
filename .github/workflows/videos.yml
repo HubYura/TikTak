@@ -1,6 +1,6 @@
 name: Render videos
 
-# Озвучує (Piper, ukrainian_tts) і рендерить (Blender) усі відеопояснення,
+# Озвучує (ukrainian-tts, голос Лада) і рендерить (Blender) усі відеопояснення,
 # а потім комітить готові кліпи в public/videos тієї ж гілки.
 # Запуск: вручну (Actions → Render videos → Run workflow) або пушем зміни
 # сценаріїв/партитури в гілку claude/**.
@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       speaker:
-        description: 'Диктор ukrainian_tts (ім’я або номер; порожньо — типовий)'
+        description: 'Голос ukrainian-tts: Lada, Tetiana, Mykyta, Oleksa, Dmytro (порожньо — Lada)'
         required: false
         default: ''
       res:
@@ -31,11 +31,34 @@ concurrency:
   group: videos-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  VOICE_URL: https://huggingface.co/rhasspy/piper-voices/resolve/main/uk/uk_UA/ukrainian_tts/medium
-
 jobs:
+  # ukrainian-tts працює на Python 3.10, а bpy — лише на 3.11, тож озвучка — окремою задачею
+  voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Встановити ukrainian-tts і ffmpeg
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q git+https://github.com/robinhad/ukrainian-tts.git
+      - name: Озвучити всі кліпи
+        run: |
+          SPK="${{ github.event.inputs.speaker }}"
+          python video/voice.py ${SPK:+--speaker "$SPK"}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voice
+          path: |
+            video/out/*/voice.wav
+            video/out/*/spans.json
+          retention-days: 7
+
   render:
+    needs: voice
     runs-on: ubuntu-latest
     timeout-minutes: 120
     strategy:
@@ -49,18 +72,16 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Встановити Blender (bpy), Piper, ffmpeg
+      - name: Встановити Blender (bpy), ffmpeg
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg libxrender1 libxxf86vm1 libxfixes3 libxi6 libxkbcommon0 libsm6 libgl1 libegl1
-          pip install -q bpy==5.0.1 piper-tts
+          pip install -q bpy==5.0.1
 
-      - name: Завантажити голос ukrainian_tts
-        run: |
-          mkdir -p video/voices
-          curl -sSfL -o video/voices/uk_UA-ukrainian_tts-medium.onnx "$VOICE_URL/uk_UA-ukrainian_tts-medium.onnx"
-          curl -sSfL -o video/voices/uk_UA-ukrainian_tts-medium.onnx.json "$VOICE_URL/uk_UA-ukrainian_tts-medium.onnx.json"
-          python -c "import json;print('Диктори:', json.load(open('video/voices/uk_UA-ukrainian_tts-medium.onnx.json')).get('speaker_id_map'))"
+      - uses: actions/download-artifact@v4
+        with:
+          name: voice
+          path: video/out
 
       - name: Вибрати свою частину кліпів
         id: part
@@ -68,11 +89,6 @@ jobs:
           ids=$(python -c "import json;c=json.load(open('video/clips.json'));print(' '.join(x['id'] for i,x in enumerate(c) if i%4==${{ matrix.part }}))")
           echo "ids=$ids" >> "$GITHUB_OUTPUT"
           echo "Кліпи: $ids"
-
-      - name: Озвучити
-        run: |
-          SPK="${{ github.event.inputs.speaker }}"
-          python video/voice.py ${SPK:+--speaker "$SPK"} --only ${{ steps.part.outputs.ids }}
 
       - name: Зрендерити
         run: |
@@ -116,7 +132,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add public/videos
           if git diff --cached --quiet; then echo "Без змін"; exit 0; fi
-          git commit -m "Re-render explainer videos with Piper voice (ukrainian_tts)"
+          git commit -m "Re-render explainer videos with the Lada voice (ukrainian-tts)"
           # Поки йшов рендер, у гілку могли запушити інші коміти — стаємо поверх них
           git pull --rebase origin "${GITHUB_REF_NAME}"
           git push origin "HEAD:${GITHUB_REF_NAME}"

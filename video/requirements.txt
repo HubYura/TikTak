@@ -1,2 +1,2 @@
-# Локальний конвеєр відео (Python 3.10+). Blender ставиться окремо: blender.org, 4.2+ (перевірено на 5.0).
-piper-tts>=1.2        # українська озвучка офлайн
+# Локальний конвеєр відео (Python 3.10 — вимога ukrainian-tts). Blender ставиться окремо: blender.org, 4.2+ (перевірено на 5.0).
+ukrainian-tts @ git+https://github.com/robinhad/ukrainian-tts.git   # українська озвучка офлайн (голос Лада)
