@@ -12,6 +12,8 @@ describe('numberWords', () => {
     expect(numberWords(32, 'f')).toBe('тридцять дві');
     expect(numberWords(40)).toBe('сорок');
     expect(numberWords(100)).toBe('сто');
+    expect(numberWords(12, 'gen')).toBe('дванадцяти');
+    expect(numberWords(41, 'gen')).toBe('сорока одного');
   });
 });
 

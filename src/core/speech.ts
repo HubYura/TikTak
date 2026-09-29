@@ -22,10 +22,19 @@ const ORD24_LOC = ['нульовій', 'першій', 'другій', 'трет
   'п’ятнадцятій', 'шістнадцятій', 'сімнадцятій', 'вісімнадцятій', 'дев’ятнадцятій', 'двадцятій',
   'двадцять першій', 'двадцять другій', 'двадцять третій'];
 
-type Gender = 'm' | 'f' | 'fAcc';
+type Gender = 'm' | 'f' | 'fAcc' | 'gen';
+
+/** Родовий відмінок: «до восьми», «до дванадцяти». */
+const ONES_GEN = ['нуля', 'одного', 'двох', 'трьох', 'чотирьох', 'п’яти', 'шести', 'семи', 'восьми', 'дев’яти',
+  'десяти', 'одинадцяти', 'дванадцяти', 'тринадцяти', 'чотирнадцяти', 'п’ятнадцяти', 'шістнадцяти',
+  'сімнадцяти', 'вісімнадцяти', 'дев’ятнадцяти'];
+const TENS_GEN = ['', '', 'двадцяти', 'тридцяти', 'сорока', 'п’ятдесяти', 'шістдесяти', 'сімдесяти', 'вісімдесяти', 'дев’яноста'];
 
 /** 0..100 словами. f — «одна/дві» (хвилина), fAcc — «одну/дві» (годину). */
 export function numberWords(n: number, g: Gender = 'm'): string {
+  if (g === 'gen' && n >= 0 && n < 100 && Number.isInteger(n)) {
+    return n < 20 ? ONES_GEN[n] : TENS_GEN[Math.floor(n / 10)] + (n % 10 ? ' ' + ONES_GEN[n % 10] : '');
+  }
   if (n === 100) return 'сто';
   if (n < 0 || n > 100 || !Number.isInteger(n)) return String(n);
   const fem = (d: number) => d === 1 ? (g === 'fAcc' ? 'одну' : 'одна') : 'дві';
@@ -139,7 +148,8 @@ function splitSentence(sentence: string): Piece[] {
       out.push(piece((lead ? lead + ' ' : '') + ORD24_NOM[Number(m[4]) % 24]));
     } else {
       const n = Number(m[5]);
-      const g: Gender = /^(хвилину|годину|секунду)/.test(rest) ? 'fAcc'
+      const g: Gender = lead.toLowerCase() === 'до' ? 'gen'
+        : /^(хвилину|годину|секунду)/.test(rest) ? 'fAcc'
         : /^(хвилин|годин|секунд)/.test(rest) ? 'f' : 'm';
       out.push(piece((lead ? lead + ' ' : '') + numberWords(n, g)));
     }

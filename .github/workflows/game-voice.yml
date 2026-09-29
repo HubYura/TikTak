@@ -1,0 +1,71 @@
+name: Game voice
+
+# Начитує голосом Лади (ukrainian-tts) шматки фраз гри з public/voice/chunks.json
+# і комітить mp3 + manifest.json у public/voice тієї ж гілки.
+# Шматки оновлює scripts/harvest-speech.mjs; нові фрази — просто перезібрати й запушити chunks.json.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+    paths:
+      - 'public/voice/chunks.json'
+      - 'video/game_voice.py'
+      - '.github/workflows/game-voice.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: game-voice-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: true
+      matrix:
+        shard: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Встановити ukrainian-tts і ffmpeg
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install -q git+https://github.com/robinhad/ukrainian-tts.git
+      - name: Начитати свою частину
+        run: python video/game_voice.py --shard ${{ matrix.shard }}/4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: voice-${{ matrix.shard }}
+          path: public/voice/c/*.mp3
+          if-no-files-found: ignore
+          retention-days: 7
+
+  publish:
+    needs: synth
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: voice-*
+          path: public/voice/c
+          merge-multiple: true
+      - name: Manifest і коміт
+        run: |
+          python video/game_voice.py --manifest-only
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A public/voice
+          if git diff --cached --quiet; then echo "Без змін"; exit 0; fi
+          git commit -m "Voice the game lines with Lada (ukrainian-tts)"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
