@@ -255,7 +255,7 @@ button { font: inherit; color: inherit; }
 /* ---------- Тік ---------- */
 
 .buddy { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-.buddy-face { width: 62px; height: 67px; flex: 0 0 auto; display: block; animation: bob 3.4s ease-in-out infinite; }
+.buddy-face { width: 62px; height: 78px; flex: 0 0 auto; display: block; animation: bob 3.4s ease-in-out infinite; }
 .buddy-face svg, .welcome-face svg { width: 100%; height: 100%; display: block; overflow: visible; }
 @keyframes bob {
   0%, 100% { transform: translateY(0) rotate(-2deg); }
@@ -278,7 +278,38 @@ button { font: inherit; color: inherit; }
 .b-eyes { animation: blink 5.5s infinite; transform-box: fill-box; transform-origin: center; }
 @keyframes blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
 
-.tik .b-eyes-happy, .tik .b-mouth-happy, .tik .b-mouth-oops, .tik .b-blush { display: none; }
+.tik .b-eyes-happy, .tik .b-mouth-happy, .tik .b-mouth-oops, .tik .b-mouth-think, .tik .b-blush { display: none; }
+[data-tik="logo"] .b-limb, [data-tik="video"] .b-limb { display: none; }
+
+/* Жести: руки намальовані донизу й обертаються навколо плеча */
+.b-arm { transform-box: view-box; transition: transform .38s cubic-bezier(.3, 1.6, .5, 1); }
+.b-arm-l { transform-origin: 8px 52px; transform: rotate(18deg); }
+.b-arm-r { transform-origin: 64px 52px; transform: rotate(-18deg); }
+.b-look { transition: transform .3s ease; }
+@keyframes wave { from { transform: rotate(-118deg); } to { transform: rotate(-162deg); } }
+
+/* «Дивись сюди»: панель праворуч від годинника — показує ліворуч, на телефоні годинник вгорі */
+.buddy[data-mood="point"] .b-arm-l { transform: rotate(100deg); }
+.buddy[data-mood="point"] .b-arm-r { transform: rotate(-26deg); }
+.buddy[data-mood="point"] .b-look  { transform: translate(-2.6px, -.6px); }
+.buddy[data-mood="happy"] .b-arm-r,
+.welcome-face .b-arm-r { animation: wave .42s ease-in-out 4 alternate; transform: rotate(-140deg); }
+.welcome-face .b-arm-r { animation-iteration-count: infinite; animation-duration: .6s; }
+.buddy[data-mood="cheer"] .b-arm-l { transform: rotate(148deg); }
+.buddy[data-mood="cheer"] .b-arm-r { transform: rotate(-148deg); }
+.buddy[data-mood="oops"] .b-arm-l  { transform: rotate(-140deg); }
+.buddy[data-mood="oops"] .b-arm-r  { transform: rotate(140deg); }
+.buddy[data-mood="think"] .b-arm-r { transform: rotate(58deg); }
+.buddy[data-mood="think"] .b-look  { transform: translate(1.6px, -2.6px); }
+.buddy[data-mood="think"] .b-mouth-idle { display: none; }
+.buddy[data-mood="think"] .b-mouth-think { display: block; }
+.buddy[data-mood="point"] .buddy-face { animation: lean .5s ease; }
+@keyframes lean { 40% { transform: translateX(-5px) rotate(-6deg); } }
+@media (max-width: 960px) {
+  .buddy[data-mood="point"] .b-arm-l { transform: rotate(165deg); }
+  .buddy[data-mood="point"] .b-look  { transform: translate(-.6px, -2.6px); }
+  @keyframes lean { 40% { transform: translateY(-6px); } }
+}
 .welcome-face .b-eyes, .welcome-face .b-mouth-idle { display: none; }
 .welcome-face .b-eyes-happy, .welcome-face .b-mouth-happy, .welcome-face .b-blush { display: block; }
 .buddy[data-mood="happy"] .b-eyes, .buddy[data-mood="cheer"] .b-eyes,
@@ -621,7 +652,7 @@ button { font: inherit; color: inherit; }
   animation: rise .45s cubic-bezier(.2, 1.4, .4, 1);
 }
 @keyframes rise { from { opacity: 0; transform: translateY(26px) scale(.94); } to { opacity: 1; transform: none; } }
-.welcome-face { display: block; width: 104px; height: 112px; margin: 0 auto; animation: bob 3.4s ease-in-out infinite; }
+.welcome-face { display: block; width: 104px; height: 130px; margin: 0 auto; animation: bob 3.4s ease-in-out infinite; }
 .sheet h2 { margin: 8px 0 8px; font-size: 28px; font-weight: 900; letter-spacing: -.4px; }
 .sheet p { margin: 0 0 20px; font-size: 17px; line-height: 1.5; color: var(--txt-2); }
 .sheet-btns { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
@@ -715,6 +746,8 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   .part, .attraction { transition: opacity .2s; transform: none; }
   .pulse, .buddy-face, .b-eyes, .welcome-face, .buddy-say.fresh { animation: none; }
+  .b-arm, .b-look { transition: none; }
+  .buddy .b-arm-r, .welcome-face .b-arm-r { animation: none; }
   .popover { animation: fade .3s ease forwards; opacity: 1; transform: translate(-50%, -50%); }
 }
 
@@ -743,7 +776,7 @@ button { font: inherit; color: inherit; }
   .readout { bottom: 8px; padding: 6px 14px; }
   .panel { padding: 12px 12px 16px; border-radius: 22px; }
   .buddy { margin-bottom: 10px; gap: 10px; }
-  .buddy-face { width: 46px; height: 50px; }
+  .buddy-face { width: 46px; height: 58px; }
   .buddy-say { font-size: 15px; padding: 9px 12px; }
   .quiz-card { padding: 12px; margin: 0 -2px 6px; }
   .qtext { font-size: 19px; margin-bottom: 12px; }

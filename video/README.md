@@ -3,7 +3,7 @@
 ```
 src/core/videos.ts ─┐                     ┌─ LM Studio (необов’язково): review.py → out/review.md
 src/core/video-beats.ts ┴─ npm run video:brief → clips.json
-                                           ├─ Piper:   voice.py  → out/<id>/voice.wav + spans.json
+                                           ├─ голос:   voice.py  → out/<id>/voice.wav + spans.json
                                            └─ Blender: render.py → out/<id>/<id>.blend / .mp4 / .jpg / .vtt
                                                                   out/manifest.json
 ```
@@ -17,9 +17,9 @@ src/core/video-beats.ts ┴─ npm run video:brief → clips.json
 |---|---|---|
 | Blender 4.2+ | рендер сцен, редаговані `.blend` | blender.org (у вас уже є) |
 | Python 3.10+ | запуск скриптів | python.org |
-| Piper | український голос Тіка, офлайн | `pip install -r video/requirements.txt` |
-| Голос Piper | модель **ukrainian_tts** | [rhasspy/piper-voices → uk/uk_UA/ukrainian_tts/medium](https://huggingface.co/rhasspy/piper-voices/tree/main/uk/uk_UA/ukrainian_tts/medium): завантажте `uk_UA-ukrainian_tts-medium.onnx` і `.onnx.json` у `video/voices/`. Послухати дикторів: [piper-samples](https://rhasspy.github.io/piper-samples/) |
-| ffmpeg (бажано) | трохи вищий «мультяшний» тон голосу | winget / brew / apt; без нього голос просто лишається як є |
+| ukrainian-tts | український голос Тіка (Лада), офлайн, наголоси зі словника. Потрібен **Python 3.10** | `pip install -r video/requirements.txt` |
+| ffmpeg | зведення голосу до потрібного формату | winget / brew / apt |
+| Piper (запасний) | старий голос, `--engine piper` | `pip install piper-tts` і модель [ukrainian_tts](https://huggingface.co/rhasspy/piper-voices/tree/main/uk/uk_UA/ukrainian_tts/medium) у `video/voices/` |
 | LM Studio | редакторська перевірка сценаріїв | у вас уже є; увімкніть сервер (Developer → Start Server) |
 
 ## Кроки
@@ -29,8 +29,9 @@ npm run video:brief                                   # 1. сценарії → 
 
 python video/review.py --model bionic                 # 2. (необов’язково) зауваження → video/out/review.md
 
-python video/voice.py                                 # 3. голос Тіка (ukrainian_tts, диктор mykyta);
-                                                      #    інший: --speaker lada / tetiana / номер
+python video/voice.py                                 # 3. голос Тіка (ukrainian-tts, Лада);
+                                                      #    інший: --speaker Tetiana / Mykyta / Oleksa / Dmytro
+                                                      #    порівняти голоси: video/voice_samples.py → docs/voice-samples/
 
 blender -b -P video/blender/render.py -- --only stage-4          # 4. пробний кліп
 blender -b -P video/blender/render.py -- --res 1920x1080         #    усі 21 кліп

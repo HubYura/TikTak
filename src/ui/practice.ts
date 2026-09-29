@@ -18,7 +18,7 @@ import { angleDist, angleOf, digital, fromDial, toDial } from '../core/time';
 import { SFX } from '../lib/audio';
 import { FX } from '../lib/fx';
 import { CX, CY, FACE_NAMES, R, setFaceStyle, setStopwatch, type FaceStyle } from '../scene/scene';
-import { bump, popover, say, speakNow } from './buddy';
+import { bump, gesture, popover, say, speakNow } from './buddy';
 import { $, anyOf, app, h } from './state';
 import { videoButton } from './video';
 import { renderHands, setSky, showSun } from './view';
@@ -260,6 +260,8 @@ function renderTask(): void {
     opts.appendChild(b);
   });
 
+  // Питання про циферблат — Тік показує на нього рукою
+  if (t.type === 'clock') gesture('point', 1800);
   speakNow(spoken);
 }
 
@@ -400,7 +402,7 @@ function finish(ok: boolean, exposed: Trap[], fell: Trap | undefined, srcEl: Ele
     SFX.wrong();
     FX.buzz([26, 60, 26]);
     if (!dunno) popover(anyOf(CHEER_UP), true);
-    say(dunno ? 'Нічого страшного! Подивись пояснення — наступного разу вийде.' : anyOf(CHEER_SAY), 'oops', 2400, false);
+    say(dunno ? 'Нічого страшного! Подивись пояснення — наступного разу вийде.' : anyOf(CHEER_SAY), dunno ? 'think' : 'oops', 2400, false);
   }
   // Пояснення озвучуємо, а не лише показуємо — 6-річні ще погано читають
   speakNow(($('qFb').textContent || '').replace(/^[✅🤔💡]\s*/u, ''));
@@ -633,7 +635,7 @@ function toggleTimer(btn: HTMLButtonElement): void {
     btn.classList.add('running');
     $('pDunno').hidden = true;
     SFX.tick();
-    say('Рахуй про себе… Я мовчу 🤫', 'idle', 1500, false);
+    say('Рахуй про себе… Я мовчу 🤫', 'think', 60000, false);
     return;
   }
   const secs = (performance.now() - timerStart) / 1000;
