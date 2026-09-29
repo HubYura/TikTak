@@ -78,7 +78,7 @@ export function goTo(i: number, quiet = false): void {
   if (!quiet) {
     if (cur <= 2) SFX.build(); else SFX.swipe();
   }
-  say(STAGE_SAY[cur], moved ? 'happy' : 'idle', 1500, !quiet || moved);
+  say(STAGE_SAY[cur], moved ? 'point' : 'idle', 1800, !quiet || moved);
 
   tm = target = st.start;
   acc = 0;

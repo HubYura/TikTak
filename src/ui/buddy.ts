@@ -3,7 +3,7 @@
 import { Voice } from '../lib/voice';
 import { $, app } from './state';
 
-type Mood = 'idle' | 'happy' | 'cheer' | 'oops';
+export type Mood = 'idle' | 'happy' | 'cheer' | 'oops' | 'think' | 'point';
 
 let buddyTimer = 0, popTimer = 0;
 let lastSpoken = '';
@@ -24,6 +24,11 @@ export function say(text: string, mood: Mood = 'idle', ms = 2200, speak = true):
   buddy.dataset.mood = mood;
   if (mood !== 'idle') buddyTimer = window.setTimeout(() => { buddy.dataset.mood = 'idle'; }, ms);
   if (speak && text) speakNow(text);
+}
+
+/** Лише жест чи вираз обличчя — без нової репліки. */
+export function gesture(mood: Mood, ms = 1800): void {
+  say('', mood, ms, false);
 }
 
 /** Говорить уголос, якщо озвучка ввімкнена. Остання фраза доступна для повтору. */
