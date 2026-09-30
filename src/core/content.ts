@@ -230,5 +230,15 @@ export const PARK: Attraction[] = [
   { id: 'flags',    ico: '🎉', name: 'Святкові прапорці', stars: 18 }
 ];
 
+/* Репліки Тіка з підставленими назвами: одне місце і для гри, і для збирача озвучки. */
+export const parkLine = (name: string): string => 'Дивись! У парку тепер ' + name.toLowerCase() + '!';
+export const badgeLine = (nm: string): string => 'Новий значок: «' + nm + '»! Ти молодчина.';
+export const unlockWhat = (level: string, adv?: string): string => adv ? level + '» і пригоду «' + adv : level;
+export const unlockLine = (what: string): string => 'Відкрито «' + what + '»! Спробуємо?';
+export const ROUND_PASS_SAY = 'Раунд пройдено! Хочеш ще?';
+export const ROUND_FAIL_SAY = 'Ще один раунд — і все вийде. Я поруч!';
+export const VOICE_ON_SAY = 'Тепер я говорю вголос!';
+export const RESET_SAY = 'Починаємо з чистого аркуша!';
+
 export const parkUnlocked = (stars: number): Attraction[] => PARK.filter(a => stars >= a.stars);
 export const nextAttraction = (stars: number): Attraction | undefined => PARK.find(a => stars < a.stars);

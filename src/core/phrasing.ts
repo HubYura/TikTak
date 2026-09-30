@@ -21,7 +21,8 @@ export function sayTime(h24: number, m: number): string {
   if (m === 45) return 'за чверть ' + ORD_NOM[next];
   if (m < 30) return m + ' ' + pluralMin(m) + ' на ' + ORD_ACC[next];
   const left = 60 - m;
-  return 'за ' + left + ' ' + pluralMin(left) + ' ' + ORD_NOM[next];
+  const w = pluralMin(left);
+  return 'за ' + left + ' ' + (w === 'хвилина' ? 'хвилину' : w) + ' ' + ORD_NOM[next];
 }
 
 export function partOfDay(h24: number): 'ранку' | 'дня' | 'вечора' | 'ночі' {

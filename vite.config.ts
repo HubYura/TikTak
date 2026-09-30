@@ -22,7 +22,14 @@ export default defineConfig({
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
         ]
       },
-      workbox: { globPatterns: ['**/*.{js,css,html,svg,png,woff2}'] }
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Записи голосу Тіка — у кеш при першому програванні, щоб потім звучали й офлайн
+        runtimeCaching: [
+          { urlPattern: ({ url }) => url.pathname === '/voice/manifest.json', handler: 'StaleWhileRevalidate', options: { cacheName: 'voice-manifest' } },
+          { urlPattern: ({ url }) => url.pathname.startsWith('/voice/'), handler: 'CacheFirst', options: { cacheName: 'voice', expiration: { maxEntries: 4000 } } }
+        ]
+      }
     })
   ]
 });

@@ -34,6 +34,8 @@ export function gesture(mood: Mood, ms = 1800): void {
 /** Говорить уголос, якщо озвучка ввімкнена. Остання фраза доступна для повтору. */
 export function speakNow(text: string): void {
   lastSpoken = text;
+  // Для збирача фраз (scripts/harvest-speech.mjs): усе, що Тік мав би сказати вголос
+  if (import.meta.env.DEV) ((window as unknown as { __spoken?: string[] }).__spoken ??= []).push(text);
   $('btnReplay').hidden = !voiceOn();
   if (voiceOn() && app.p.settings.autoRead) Voice.speak(text);
 }
