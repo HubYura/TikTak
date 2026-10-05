@@ -6,6 +6,10 @@ import '@fontsource/nunito/cyrillic-900.css';
 import '@fontsource/nunito/latin-600.css';
 import '@fontsource/nunito/latin-800.css';
 import '@fontsource/nunito/latin-900.css';
+import '@fontsource/unbounded/cyrillic-700.css';
+import '@fontsource/unbounded/cyrillic-800.css';
+import '@fontsource/unbounded/latin-700.css';
+import '@fontsource/unbounded/latin-800.css';
 import './styles/main.css';
 
 import { PARK, RESET_SAY, VOICE_ON_SAY, parkLine } from './core/content';

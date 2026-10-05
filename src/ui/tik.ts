@@ -4,14 +4,14 @@ export const TIK_SVG = `
 <svg viewBox="0 0 72 90" class="tik">
   <ellipse class="b-limb" cx="36" cy="87" rx="17" ry="2.6" fill="#26364a" opacity=".12"/>
   <g class="b-limb">
-    <path d="M28 70 L27 82 M44 70 L45 82" stroke="#d98a1c" stroke-width="3.4" stroke-linecap="round"/>
+    <path d="M28 70 L27 82 M44 70 L45 82" stroke="#15111f" stroke-width="3.4" stroke-linecap="round"/>
     <ellipse cx="24.5" cy="84" rx="5.6" ry="3.1" fill="#26364a"/>
     <ellipse cx="47.5" cy="84" rx="5.6" ry="3.1" fill="#26364a"/>
   </g>
-  <path d="M36 4 L36 14" stroke="#d98a1c" stroke-width="4" stroke-linecap="round"/>
-  <circle cx="36" cy="4" r="4" fill="#ffc93c"/>
-  <circle cx="36" cy="44" r="30" fill="#ffc93c" stroke="#d98a1c" stroke-width="3"/>
-  <circle cx="36" cy="44" r="23" fill="#fffaf0"/>
+  <path d="M36 4 L36 14" stroke="#15111f" stroke-width="3.4" stroke-linecap="round"/>
+  <circle cx="36" cy="4.5" r="4" fill="#ff8fd3" stroke="#15111f" stroke-width="2.4"/>
+  <circle cx="36" cy="44" r="30" fill="#ffd23f" stroke="#15111f" stroke-width="3.4"/>
+  <circle cx="36" cy="44" r="23" fill="#fffaf0" stroke="#15111f" stroke-width="2.4"/>
   <path d="M36 25 L36 29 M55 44 L51 44 M36 63 L36 59 M17 44 L21 44" stroke="#e7cf9f" stroke-width="2.4" stroke-linecap="round"/>
   <g class="b-look">
     <g class="b-eyes">
@@ -34,12 +34,12 @@ export const TIK_SVG = `
     <circle cx="50" cy="50" r="3.4" fill="#ff6b6b" opacity=".4"/>
   </g>
   <g class="b-limb b-arm b-arm-l">
-    <path d="M8 52 L8 68" stroke="#d98a1c" stroke-width="3.8" stroke-linecap="round"/>
-    <circle cx="8" cy="70" r="4.4" fill="#fff" stroke="#e3d5bb" stroke-width="1.3"/>
+    <path d="M8 52 L8 68" stroke="#15111f" stroke-width="3.8" stroke-linecap="round"/>
+    <circle cx="8" cy="70" r="4.4" fill="#fff" stroke="#15111f" stroke-width="2.4"/>
   </g>
   <g class="b-limb b-arm b-arm-r">
-    <path d="M64 52 L64 68" stroke="#d98a1c" stroke-width="3.8" stroke-linecap="round"/>
-    <circle cx="64" cy="70" r="4.4" fill="#fff" stroke="#e3d5bb" stroke-width="1.3"/>
+    <path d="M64 52 L64 68" stroke="#15111f" stroke-width="3.8" stroke-linecap="round"/>
+    <circle cx="64" cy="70" r="4.4" fill="#fff" stroke="#15111f" stroke-width="2.4"/>
   </g>
 </svg>`;
 
