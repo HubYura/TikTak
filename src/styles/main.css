@@ -171,11 +171,11 @@ button { font: inherit; color: inherit; }
 }
 #scene { display: block; width: 100%; height: auto; }
 
-/* 3D-сцена «Уроку» займає місце острова тих самих пропорцій */
+/* 3D-сцена займає місце SVG-сцени тих самих пропорцій */
 .scene3d { display: block; width: 100%; aspect-ratio: 900 / 620; touch-action: none; background: #04121a; cursor: grab; }
-body.has-3d[data-mode="learn"] #scene { display: none; }
-body:not([data-mode="learn"]) .scene3d { display: none; }
-body.has-3d[data-mode="learn"] .scene-card { background: #04121a; }
+body.show-3d #scene { display: none; }
+body:not(.show-3d) .scene3d { display: none !important; }
+body.show-3d .scene-card { background: #04121a; }
 .scene3d-btn {
   position: absolute; left: 14px; top: 14px; z-index: 2;
   height: 38px; padding: 0 14px;
@@ -826,6 +826,7 @@ body.has-3d[data-mode="learn"] .scene-card { background: #04121a; }
   #scene { max-height: 58vh; }
   .scene3d { aspect-ratio: auto; height: min(58vh, 520px); }
   body[data-mode="practice"] #scene { max-height: 44vh; }
+  body[data-mode="practice"] .scene3d { height: min(44vh, 400px); }
 }
 
 @media (max-width: 600px) {

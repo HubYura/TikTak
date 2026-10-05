@@ -27,7 +27,7 @@ import { Videos } from './lib/video';
 import { initVideo, videoButton } from './ui/video';
 import { initParent } from './ui/parent';
 import {
-  awardBadges, enterPractice, initPractice, practiceFrame, renderScore, resetPracticeTrack, setOnRoundEnd
+  awardBadges, enterPractice, initPractice, practiceFrame, renderScore, resetPracticeTrack, setOnRoundEnd, sync3D
 } from './ui/practice';
 import { $, app, type Mode } from './ui/state';
 import { mountTik } from './ui/tik';
@@ -123,9 +123,8 @@ function setMode(m: Mode): void {
     setFaceStyle(app.S, 'teach');
     setStopwatch(app.S, false);
     enterLearn();
-    show3D(true, syncTower);
+    show3D('learn', syncTower);
   } else {
-    show3D(false);
     setPlaying(false);
     // У грі циферблат повний: без секундної стрілки, секторів чвертей і приглушення
     const all = new Set(Object.keys(app.S.parts));
@@ -150,7 +149,8 @@ function celebratePark(): void {
   app.p.park.push(...fresh);
   app.save();
 
-  // Від'їжджаємо камерою, щоб дитина побачила, як атракціон з'являється в парку
+  // Від'їжджаємо камерою, щоб дитина побачила, як атракціон з'являється в парку (парк — на SVG-сцені)
+  show3D(null);
   for (const id of fresh) app.S.park[id].classList.remove('on');
   camera(app.mode === 'practice' ? REVEAL : frameFor(), 900);
   setTimeout(() => {
@@ -170,6 +170,7 @@ function celebratePark(): void {
 $('ptOk').addEventListener('click', () => {
   $('parkToast').hidden = true;
   camera(frameFor(), 700);
+  if (app.mode === 'practice') sync3D(); else show3D('learn', syncTower);
 });
 setOnRoundEnd(celebratePark);
 
@@ -201,7 +202,7 @@ $('wPlay').addEventListener('click', () => closeWelcome('practice'));
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
   for (const id of ['report', 'gate', 'parkToast']) {
-    if (!$(id).hidden) { $(id).hidden = true; if (id === 'parkToast') camera(frameFor(), 700); }
+    if (!$(id).hidden) { $(id).hidden = true; if (id === 'parkToast') $('ptOk').click(); }
   }
 });
 

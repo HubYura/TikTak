@@ -20,6 +20,7 @@ import { SFX } from '../lib/audio';
 import { FX } from '../lib/fx';
 import { CX, CY, FACE_NAMES, R, setFaceStyle, setStopwatch, type FaceStyle } from '../scene/scene';
 import { bump, gesture, popover, say, speakNow } from './buddy';
+import { show3D, tower3d } from './scene3d';
 import { $, anyOf, app, h } from './state';
 import { videoButton } from './video';
 import { renderHands, setSky, showSun } from './view';
@@ -169,12 +170,19 @@ function newTask(): void {
     recent.push({ h: task.plan.h, m: task.plan.m, kind: task.plan.kind });
     if (recent.length > 10) recent.shift();
   }
+  sync3D(style);
   setFaceStyle(app.S, style);
   const stopwatch = task?.type === 'feel' && task.t.mode === 'estimate';
   setStopwatch(app.S, stopwatch);
   app.S.parts.fSec.el.classList.toggle('on', stopwatch);
   renderTask();
   renderDial();
+}
+
+/** Звичайний циферблат — на 3D-вежі; інші стилі, секундомір і «Розпорядок дня» (там підказує небо) — у SVG. */
+export function sync3D(style: FaceStyle = task?.type === 'clock' ? task.style ?? 'teach' : 'teach'): void {
+  const in3D = !!task && ((task.type === 'clock' && style === 'teach') || task.type === 'elapsed');
+  show3D(app.mode === 'practice' && in3D ? 'practice' : null, () => renderDial());
 }
 
 function correctLabel(o: Option[]): string { return o.find(x => x.correct)!.label; }
@@ -681,6 +689,7 @@ export function practiceFrame(now: number): void {
 
 function renderDial(): void {
   renderHands(dial, secFrac);
+  tower3d()?.setTime(dial, secFrac);
   const t = task;
   if (t && t.type === 'clock' && t.plan.kind === 'set') {
     const g = fromDial(dial);
@@ -696,29 +705,47 @@ function toSvg(evt: PointerEvent): DOMPoint {
   return m ? pt.matrixTransform(m.inverse()) : pt;
 }
 
+/** Дотик відносно центру циферблата в одиницях SVG-сцени (y — донизу), байдуже, яка сцена на екрані. */
+function dialOffset(e: PointerEvent): { dx: number; dy: number } | null {
+  const t3 = tower3d();
+  if (t3 && document.body.classList.contains('show-3d')) {
+    const p = t3.dialPoint(e.clientX, e.clientY);
+    return p && { dx: p.x * R, dy: -p.y * R };
+  }
+  const p = toSvg(e);
+  return { dx: p.x - CX, dy: p.y - CY };
+}
+
 function initDrag(): void {
   const grab = app.S.grab;
+  const canvas3d = $('scene3d');
   let mode: 'min' | 'hour' | null = null, lastAng = 0;
 
-  grab.addEventListener('pointerdown', e => {
+  const down = (e: PointerEvent, el: Element) => {
     const t = task;
     if (app.mode !== 'practice' || !t || t.type !== 'clock' || t.plan.kind !== 'set' || answered) return;
-    const p = toSvg(e), dx = p.x - CX, dy = p.y - CY, r = Math.hypot(dx, dy);
+    const o = dialOffset(e);
+    if (!o) return;
+    const { dx, dy } = o, r = Math.hypot(dx, dy);
     if (r > R + 10) return;
     const a = angleOf(dx, dy);
     // Довга стрілка проходить і крізь зону короткої — біля центру беремо ту, до якої влучили кутом
     const hourA = (dial % 720) / 720 * 360, minA = (dial % 60) * 6;
     mode = r > 60 ? 'min' : (angleDist(a, hourA) <= angleDist(a, minA) ? 'hour' : 'min');
     lastAng = a;
-    try { grab.setPointerCapture(e.pointerId); } catch { /* не критично */ }
+    try { el.setPointerCapture(e.pointerId); } catch { /* не критично */ }
     grab.classList.add('dragging');
     app.S.parts[mode === 'min' ? 'fMin' : 'fHour'].el.classList.add('held');
     e.preventDefault();
-  });
+  };
+  grab.addEventListener('pointerdown', e => down(e, grab));
+  canvas3d.addEventListener('pointerdown', e => down(e, canvas3d));
 
-  grab.addEventListener('pointermove', e => {
+  const move = (e: PointerEvent) => {
     if (!mode) return;
-    const p = toSvg(e), a = angleOf(p.x - CX, p.y - CY);
+    const o = dialOffset(e);
+    if (!o) return;
+    const a = angleOf(o.dx, o.dy);
     if (mode === 'min') {
       // Накопичуємо різницю кута: обертання довгої переносить години, як у справжнього годинника
       let d = a - lastAng;
@@ -736,7 +763,9 @@ function initDrag(): void {
     dial = Math.round(raw) % 720;
     if (dial !== before) { SFX.notch(); FX.buzz(6); }
     renderDial();
-  });
+  };
+  grab.addEventListener('pointermove', move);
+  canvas3d.addEventListener('pointermove', move);
 
   /* Слухаємо на вікні: палець може відірватися поза циферблатом */
   const end = () => {

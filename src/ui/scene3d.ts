@@ -28,7 +28,6 @@ function load(): Promise<Tower3D | null> {
       .catch(e => { console.warn('[3D] сцена недоступна:', e); failed = true; return null; })
       .then(t => {
         tower = t;
-        document.body.classList.toggle('has-3d', !!t);
         $('scene3d').hidden = !t;
         return t;
       });
@@ -36,14 +35,25 @@ function load(): Promise<Tower3D | null> {
   return loading;
 }
 
-/** Увімкнути або призупинити 3D-сцену (поза «Уроком» вона не малюється). */
-export function show3D(on: boolean, ready?: (t: Tower3D) => void): void {
-  wanted = on;
-  $('btnTower').hidden = !on || !tower;
-  if (!on) { tower?.stop(); return; }
+export type Scene3DMode = 'learn' | 'practice' | null;
+let mode: Scene3DMode = null;
+
+/** Яка сцена на екрані: 3D для «Уроку» чи для «Гри», або null — пласка SVG-сцена.
+    Поза цими режимами 3D-сцена не малюється. */
+export function show3D(next: Scene3DMode, ready?: (t: Tower3D) => void): void {
+  mode = next;
+  wanted = !!next;
+  $('btnTower').hidden = next !== 'learn' || !tower;
+  if (!next) {
+    document.body.classList.remove('show-3d');
+    tower?.stop();
+    return;
+  }
   load().then(t => {
-    if (!t || !wanted) return;
-    $('btnTower').hidden = false;
+    if (!t || mode !== next) return;
+    document.body.classList.add('show-3d');
+    $('btnTower').hidden = next !== 'learn';
+    t.setPractice(next === 'practice');
     t.start();
     ready?.(t);
   });

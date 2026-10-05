@@ -8,6 +8,10 @@ export interface Tower3D {
   /** Час доби для етапу «Ранок, день, вечір, ніч», хвилини від півночі; null — полудень. */
   setDay(mins: number | null): void;
   overview(): void;
+  /** Режим «Гри»: готова вежа, камера впритул до циферблата. */
+  setPractice(on: boolean): void;
+  /** Точка дотику на циферблаті (1 — край), або null. */
+  dialPoint(clientX: number, clientY: number): { x: number; y: number } | null;
   start(): void;
   stop(): void;
   setQuality(high: boolean): void;
