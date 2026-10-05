@@ -438,6 +438,9 @@ export function createTower3D(canvas, opts = {}) {
   const HG = extr(handShape('h')), MG = extr(handShape('m'));
   const SG = new THREE.BoxGeometry(0.018, 0.92, 0.012).translate(0, 0.3, 0);
   const hands = { h: [], m: [], s: [] };
+  /* «Підсвітка» уроку: те, що вивчаємо на етапі, м'яко пульсує (стрілка, цифри хвилин чи рисочки) */
+  const focusable = { nums: [], ticks: [] };
+  let focusKey = null;
   let frontFace = null;   // циферблат, що дивиться в камеру в режимі гри — на ньому крутять стрілки
   const pD = part(3), pH = part(4), pM = part(5), pHalf = part(6), pQ = part(7), pMin = part(8), pTick = part(9), pS = part(10);
   for (let f = 0; f < 4; f++) {
@@ -451,8 +454,8 @@ export function createTower3D(canvas, opts = {}) {
     add(d, new THREE.CylinderGeometry(0.07, 0.07, 0.06, 16), T.gold, 0, 0, 0.17).rotation.x = Math.PI / 2;
     const sector = (p, start, len, z) => { const g = anchor(p); add(g, new THREE.CircleGeometry(DR * 0.93, 40, start, len), new THREE.MeshBasicMaterial({ color: 0xFFE27A, transparent: true, opacity: 0.6, toneMapped: false, depthWrite: false }), 0, 0, z); };
     sector(pHalf, -Math.PI / 2, Math.PI, 0.05); sector(pQ, 0, Math.PI / 2, 0.051);
-    add(anchor(pMin), new THREE.PlaneGeometry(DR * 2, DR * 2), new THREE.MeshBasicMaterial({ map: minTex, transparent: true, depthWrite: false }), 0, 0, 0.055);
-    add(anchor(pTick), new THREE.PlaneGeometry(DR * 2, DR * 2), new THREE.MeshBasicMaterial({ map: tickTex, transparent: true, depthWrite: false }), 0, 0, 0.056);
+    focusable.nums.push(add(anchor(pMin), new THREE.PlaneGeometry(DR * 2, DR * 2), new THREE.MeshBasicMaterial({ map: minTex, transparent: true, depthWrite: false }), 0, 0, 0.055));
+    focusable.ticks.push(add(anchor(pTick), new THREE.PlaneGeometry(DR * 2, DR * 2), new THREE.MeshBasicMaterial({ map: tickTex, transparent: true, depthWrite: false }), 0, 0, 0.056));
     hands.h.push(add(anchor(pH), HG, std(0xFF5A5F, { roughness: 0.45 }), 0, 0, 0.08));   // ті самі кольори, що в уроці й відео: годинна червона
     hands.m.push(add(anchor(pM), MG, std(0x2D8CFF, { roughness: 0.45 }), 0, 0, 0.11));   // хвилинна синя
     const sh = add(anchor(pS), SG, glow(0xFF9F1A), 0, 0, 0.145);   // секундна помаранчева
@@ -985,6 +988,16 @@ export function createTower3D(canvas, opts = {}) {
     hands.h.forEach(x => x.rotation.z = -hm / 720 * Math.PI * 2);
     hands.m.forEach(x => x.rotation.z = -(hm % 60) / 60 * Math.PI * 2);
     hands.s.forEach(x => x.rotation.z = -secFrac * Math.PI * 2);
+    {
+      const pk = reduced ? 0.6 : 0.5 + 0.5 * Math.sin(now * 0.006);
+      for (const k of ['h', 'm', 's']) hands[k].forEach(x => {
+        const on = focusKey === k;
+        x.scale.setScalar(on ? 1 + 0.14 * pk : 1);
+        const e = x.material.emissive;
+        if (e) { if (on) e.copy(x.material.color).multiplyScalar(0.55 * pk); else e.setRGB(0, 0, 0); }
+      });
+      for (const k of ['nums', 'ticks']) focusable[k].forEach(x => { x.material.opacity = focusKey === k ? 0.45 + 0.55 * pk : 1; });
+    }
 
     for (const g of parts) {
       if (!g.userData.t0) continue;
@@ -1057,6 +1070,7 @@ export function createTower3D(canvas, opts = {}) {
     setPractice(on) {
       if (on === locked) return;
       locked = on;
+      focusKey = null;
       pHalf.visible = pQ.visible = pS.visible = pL.visible = !on;
       railings.forEach(g => { g.visible = !on; });
       if (!on) { controls.enabled = true; return; }
@@ -1092,6 +1106,8 @@ export function createTower3D(canvas, opts = {}) {
     /** Час доби для етапу 11 (хвилини від півночі) або null. */
     setDay(mins) { dayMins = mins; },
     overview() { goOverview(); },
+    /** Що пульсує на циферблаті: 'h' | 'm' | 's' | 'nums' | 'ticks' або null. */
+    setFocus(k) { focusKey = k; },
     /** Вільна від панелей частина полотна { x, y, w, h } у CSS-пікселях; null — усе полотно. */
     setFrame(r) {
       const same = r && view && ['x', 'y', 'w', 'h'].every(k => Math.abs(r[k] - view[k]) < 1);
