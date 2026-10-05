@@ -41,6 +41,7 @@ const buffers = new Map<string, Promise<AudioBuffer | null>>();
 let playing: AudioBufferSourceNode[] = [];
 let endsAt = 0;
 let generation = 0;
+let pending = false;   // записи ще вантажаться — фраза от-от почнеться
 
 function audio(): AudioContext | null {
   if (!ctx) {
@@ -142,7 +143,8 @@ export const Voice = {
     const missing = clips ? plan.flat().filter(p => !clips![p.key]) : [];
     if (clips && !missing.length) {
       if (interrupt) synth?.cancel();
-      playClips(plan, interrupt).then(ok => { if (!ok) speakWeb(text, interrupt); });
+      pending = true;
+      playClips(plan, interrupt).then(ok => { pending = false; if (!ok) speakWeb(text, interrupt); });
       return;
     }
     if (import.meta.env.DEV && clips) console.warn('[voice] немає запису:', missing.map(p => p.text));
@@ -150,7 +152,13 @@ export const Voice = {
     speakWeb(text, interrupt);
   },
 
+  /** Чи Тік зараз говорить (або от-от почне) — щоб урок не перемикав етап посеред фрази. */
+  busy(): boolean {
+    return pending || (!!ctx && ctx.state === 'running' && ctx.currentTime < endsAt) || !!synth?.speaking;
+  },
+
   stop(): void {
+    pending = false;
     generation++;
     stopClips();
     synth?.cancel();

@@ -4,6 +4,7 @@ import { STAGES, STAGE_SAY } from '../core/content';
 import { partOfDay, sayTime } from '../core/phrasing';
 import { digital, digital24 } from '../core/time';
 import { SFX } from '../lib/audio';
+import { Voice } from '../lib/voice';
 import { STAGE_VIDEOS } from '../core/videos';
 import { say } from './buddy';
 import { tower3d } from './scene3d';
@@ -17,6 +18,13 @@ let speed = 1;
 let focusOn = true;
 let tm = 540, target = 540, acc = 0, stageT = 0;
 let tickFlip = false;
+/** Скільки мс Тік уже мовчить: етап перемикається лише після того, як пояснення дозвучало. */
+let quietMs = 0;
+const AFTER_SPEECH = 1600;
+/* «Підсвітка» на 3D-вежі: що пульсує на етапі */
+const FOCUS_3D: Record<string, 'h' | 'm' | 's' | 'nums' | 'ticks'> = {
+  fHour: 'h', fMin: 'm', fSec: 's', fNumsMin: 'nums', fTicksMin: 'ticks'
+};
 
 export const learnStage = (): number => cur;
 
@@ -29,7 +37,11 @@ export function initLearn(): void {
     rail.appendChild(b);
   });
 
-  $('btnPlay').addEventListener('click', () => setPlaying(!playing));
+  $('btnPlay').addEventListener('click', () => {
+    // Наприкінці уроку «Пуск» починає спочатку, а не зупиняється одразу
+    if (!playing && cur === STAGES.length - 1) goTo(0);
+    setPlaying(!playing);
+  });
   $('btnPrev').addEventListener('click', () => goTo(cur - 1));
   $('btnNext').addEventListener('click', () => goTo(cur + 1));
   $('btnReset').addEventListener('click', () => { goTo(0); setPlaying(false); });
@@ -57,6 +69,7 @@ export function initLearn(): void {
 function refreshFocus(): void {
   const st = STAGES[cur];
   applyFocus(focusOn && st.focus ? st.focus : null, focusOn && st.pulse ? st.pulse : null, visibleIds(cur));
+  tower3d()?.setFocus(focusOn && st.pulse ? FOCUS_3D[st.pulse] ?? null : null);
 }
 
 export function setPlaying(v: boolean): void {
@@ -84,6 +97,7 @@ export function goTo(i: number, quiet = false): void {
   tm = target = st.start;
   acc = 0;
   stageT = 0;
+  quietMs = 0;
 
   applyRevealSet(visibleIds(cur));
   refreshFocus();
@@ -122,6 +136,7 @@ export function goTo(i: number, quiet = false): void {
 /** 3D-сцена щойно з'явилась — показати їй поточний етап. */
 export function syncTower(): void {
   tower3d()?.setStage(cur, false);
+  refreshFocus();
   renderLearn();
 }
 
@@ -174,7 +189,9 @@ export function learnFrame(dt: number): void {
       }
       if (target > 2880) { target -= 1440; tm -= 1440; }
     }
-    if (stageT > st.hold) {
+    // Наступний етап — коли минув час етапу І Тік договорив (плюс коротка пауза, щоб усе осмислити)
+    quietMs = Voice.busy() ? 0 : quietMs + dt * 1000;
+    if (stageT > st.hold && quietMs > AFTER_SPEECH) {
       if (cur < STAGES.length - 1) goTo(cur + 1);
       else { setPlaying(false); stageT = 0; }
     }
@@ -182,4 +199,9 @@ export function learnFrame(dt: number): void {
   const k = st.snap ? 9 : 22;
   tm += (target - tm) * (1 - Math.exp(-dt * k));
   renderLearn();
+}
+
+// Для перевірок у режимі розробки: чи йде урок і чи чекає він на Тіка
+if (import.meta.env.DEV) {
+  (window as unknown as { __learn: () => object }).__learn = () => ({ cur, playing, stageT: Math.round(stageT), quietMs: Math.round(quietMs), busy: Voice.busy() });
 }

@@ -19,7 +19,7 @@ export const STAGES: Stage[] = [
     warn: 'Діти часто ведуть пальцем проти стрілки. Обведіть коло рукою кілька разів у правильному напрямку, перш ніж узагалі рахувати.',
     todo: 'Намалюй пальцем у повітрі велике коло за годинниковою стрілкою. Почни згори, від числа 12.',
     show: ['sky', 'clouds', 'ground', 'shadow', 'plinth'],
-    rate: 0, snap: 0, start: 540, hold: 3200, time: false
+    rate: 0, snap: 0, start: 540, hold: 6000, time: false
   },
   {
     chip: 'Будівництво',
@@ -29,7 +29,7 @@ export const STAGES: Stage[] = [
     warn: 'Годинник — не малюнок, а машина. Якщо одна стрілка зрушила, друга теж зрушила — просто набагато менше.',
     todo: 'Порахуй, скільки «поверхів» у нашої вежі. Як гадаєш, де саме з’явиться циферблат?',
     show: ['shaft', 'housing', 'roof', 'banner', 'scenery', 'peeps'],
-    rate: 0, snap: 0, start: 540, hold: 3200, time: false
+    rate: 0, snap: 0, start: 540, hold: 6000, time: false
   },
   {
     chip: 'Циферблат',
@@ -40,7 +40,7 @@ export const STAGES: Stage[] = [
     todo: 'Закрий очі й скажи: яке число навпроти 12? А навпроти 4?',
     show: ['fDial', 'fTicksHour', 'fNumsHour', 'fHub'],
     focus: ['fDial', 'fTicksHour', 'fNumsHour', 'fHub'],
-    rate: 0, snap: 0, start: 540, hold: 4200, time: false
+    rate: 0, snap: 0, start: 540, hold: 6500, time: false
   },
   {
     chip: 'Стрілки',
