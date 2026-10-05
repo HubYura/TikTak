@@ -71,3 +71,14 @@ describe('хвилинка часу', () => {
     expect(migrate({ ...p, daily: { last: 'вчора', streak: 'x' } }, 5)!.daily).toEqual({ last: '', streak: 0, best: 0, count: 0 });
   });
 });
+
+describe('налаштування озвучки', () => {
+  it('варіанти зачитуються типово, а вимкнене зберігається', () => {
+    expect(blankProgress(5).settings.readOptions).toBe(true);
+    const p = blankProgress(5);
+    p.settings.readOptions = false;
+    expect(migrate(JSON.parse(JSON.stringify(p)), 5)!.settings.readOptions).toBe(false);
+    const { readOptions: _, ...old } = p.settings;
+    expect(migrate({ ...p, settings: old }, 5)!.settings.readOptions).toBe(true);
+  });
+});

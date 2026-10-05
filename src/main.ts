@@ -94,6 +94,12 @@ $('btnVoice').addEventListener('click', () => {
   say(app.p.settings.voice ? VOICE_ON_SAY : 'Добре, я мовчатиму.', 'happy', 1400);
 });
 $('btnReplay').addEventListener('click', replay);
+// Шторка панелі на телефоні: згорнути, щоб роздивитися вежу
+$('sheetGrip').addEventListener('click', () => {
+  const min = document.body.classList.toggle('sheet-min');
+  $('sheetGrip').setAttribute('aria-expanded', String(!min));
+  $('sheetGrip').setAttribute('aria-label', min ? 'Розгорнути панель' : 'Згорнути панель');
+});
 Voice.onChange(paintVoice);
 document.addEventListener('settings', () => { paintSound(); paintVoice(); });
 paintSound();

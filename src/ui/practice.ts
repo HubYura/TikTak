@@ -20,7 +20,7 @@ import { angleDist, angleOf, digital, fromDial, toDial } from '../core/time';
 import { SFX } from '../lib/audio';
 import { FX } from '../lib/fx';
 import { CX, CY, FACE_NAMES, R, setFaceStyle, setStopwatch, type FaceStyle } from '../scene/scene';
-import { bump, gesture, popover, say, speakNow } from './buddy';
+import { bump, gesture, popover, say, speakAfter, speakNow, speakTap } from './buddy';
 import { show3D, tower3d } from './scene3d';
 import { $, anyOf, app, h } from './state';
 import { videoButton } from './video';
@@ -273,12 +273,22 @@ function renderTask(): void {
   options.forEach((o, i) => {
     const b = h('button', { class: 'opt', type: 'button', text: o.label, 'aria-keyshortcuts': String(i + 1) });
     b.addEventListener('click', () => choose(o, b, options));
-    opts.appendChild(b);
+    if (!wordy) { opts.appendChild(b); return; }
+    // Хто ще не читає, може послухати кожен варіант, не обираючи його
+    const ear = h('button', { class: 'opt-ear', type: 'button', 'aria-label': 'Послухати: ' + o.label, text: '🔊' });
+    ear.addEventListener('click', () => {
+      speakTap(o.label);
+      b.classList.remove('heard');
+      void b.offsetWidth;
+      b.classList.add('heard');
+    });
+    opts.appendChild(h('div', { class: 'opt-row' }, b, ear));
   });
 
   // Питання про циферблат — Тік показує на нього рукою
   if (t.type === 'clock' || t.type === 'home') gesture('point', 1800);
   speakNow(spoken);
+  if (wordy && app.p.settings.readOptions) options.forEach(o => speakAfter(o.label));
 }
 
 /* ---------- Пояснення, прив'язані до конкретної помилки ---------- */
@@ -346,7 +356,7 @@ function feedback(ok: boolean, html: string, title?: string): void {
 function choose(o: Option, btn: HTMLButtonElement, options: Option[]): void {
   if (answered) return;
   const ok = o.correct;
-  [...$('qOpts').children].forEach(b => {
+  [...$('qOpts').querySelectorAll('.opt, .opt-ear')].forEach(b => {
     (b as HTMLButtonElement).disabled = true;
     if (b.textContent === correctLabel(options)) b.classList.add('right');
     else if (b === btn) b.classList.add('wrong');
@@ -390,7 +400,7 @@ function giveUp(): void {
     $('qOpts').innerHTML = '';
   } else {
     const opts = t.type === 'clock' ? t.options : 'options' in t.t ? t.t.options : [];
-    [...$('qOpts').children].forEach(b => {
+    [...$('qOpts').querySelectorAll('.opt, .opt-ear')].forEach(b => {
       (b as HTMLButtonElement).disabled = true;
       b.classList.add(b.textContent === correctLabel(opts) ? 'right' : 'faded');
     });
@@ -907,7 +917,7 @@ function initDrag(): void {
     if (!t || answered || (e.target as Element).matches('input, textarea')) return;
     if (!canSet(t)) {
       const n = Number(e.key);
-      if (n >= 1 && n <= 4) ($('qOpts').children[n - 1] as HTMLButtonElement | undefined)?.click();
+      if (n >= 1 && n <= 4) ($('qOpts').querySelectorAll('.opt')[n - 1] as HTMLButtonElement | undefined)?.click();
       return;
     }
     const step = t.type === 'clock' ? LEVELS[t.plan.level].snap : homeStep;
@@ -955,7 +965,7 @@ if (import.meta.env.DEV) {
         timerStart = performance.now() - t.t.seconds * (0.4 + Math.random() * 1.2) * 1000;
         toggleTimer(btn);
       } else {
-        const opts = [...$('qOpts').querySelectorAll('button')] as HTMLButtonElement[];
+        const opts = [...$('qOpts').querySelectorAll('.opt')] as HTMLButtonElement[];
         pick(opts).click();
       }
       if (Math.random() < 0.1) {

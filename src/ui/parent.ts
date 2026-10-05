@@ -271,6 +271,8 @@ export function openReport(onReset: () => void): void {
     !Voice.available(), Voice.available() ? '' : 'На цьому пристрої немає українського голосу');
   toggle('Читати питання вголос автоматично', p.settings.autoRead, v => { p.settings.autoRead = v; app.save(); },
     !Voice.available());
+  toggle('Читати варіанти відповідей уголос', p.settings.readOptions, v => { p.settings.readOptions = v; app.save(); },
+    !Voice.available(), 'Для дітей, які ще не читають. Біля словесних варіантів завжди є кнопка 🔊.');
   body.append(settings);
 
   const reset = h('button', { class: 'btn btn-danger btn-sm', type: 'button', text: 'Скинути весь прогрес' });
