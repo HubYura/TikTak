@@ -76,6 +76,7 @@ function startTry(): void {
 }
 
 function endTry(): void {
+  $('btnTry').hidden = !TRIES[cur] || !tower3d();
   if (!trying) return;
   trying = null;
   tower3d()?.setInteractive(false);
