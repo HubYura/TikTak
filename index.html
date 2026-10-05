@@ -10,6 +10,9 @@
 <link rel="apple-touch-icon" href="/icon-192.png">
 </head>
 <body>
+<!-- 3D-космос лежить під усім інтерфейсом: він і тло, і головний об'єкт -->
+<canvas id="scene3d" class="scene3d" hidden role="img"
+  aria-label="3D-сцена: маленька планета в космосі, де Тік будує годинникову вежу"></canvas>
 <div class="app" id="app">
 
   <header class="topbar">
@@ -41,8 +44,6 @@
       <svg id="scene" viewBox="0 0 900 620" role="img" aria-labelledby="sceneTitle">
         <title id="sceneTitle">Маленька планета з годинниковою вежею</title>
       </svg>
-      <canvas id="scene3d" class="scene3d" hidden role="img"
-        aria-label="3D-сцена: маленька планета в космосі, де Тік будує годинникову вежу"></canvas>
       <button class="scene3d-btn" id="btnTower" type="button" hidden title="Подивитися на всю вежу">🔭 Вежа</button>
 
       <div class="readout" id="readout" hidden aria-live="polite">
@@ -55,6 +56,7 @@
     </section>
 
     <aside class="panel" id="panel">
+      <button class="sheet-grip" id="sheetGrip" type="button" aria-label="Згорнути панель" aria-expanded="true"><span></span></button>
 
       <div class="buddy" id="buddy" data-mood="idle">
         <span class="buddy-face" data-tik="buddy" aria-hidden="true"></span>

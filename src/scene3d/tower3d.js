@@ -927,6 +927,9 @@ export function createTower3D(canvas, opts = {}) {
     resize();
   }
 
+  /* Полотно може лежати під панелями на весь екран. view — вільна від них частина (у пікселях полотна):
+     вежу центруємо саме в ній, а кут огляду рахуємо так, ніби полотно було лише такого розміру. */
+  let view = null;
   function resize() {
     const w = canvas.clientWidth, h = canvas.clientHeight;
     if (!w || !h) return;
@@ -935,7 +938,12 @@ export function createTower3D(canvas, opts = {}) {
     composer.setSize(w, h);
     bloom.resolution.set(w / 2, h / 2);
     camera.aspect = w / h;
-    camera.fov = w / h < 0.8 ? 60 : 42;
+    const f = view && view.w > 40 && view.h > 40 ? view : { x: 0, y: 0, w, h };
+    const fov0 = f.w / f.h < 0.8 ? 60 : 42;
+    camera.fov = 2 * Math.atan(Math.tan(fov0 * Math.PI / 360) * h / f.h) * 180 / Math.PI;
+    const dx = w / 2 - (f.x + f.w / 2), dy = h / 2 - (f.y + f.h / 2);
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) camera.clearViewOffset();
+    else camera.setViewOffset(w, h, dx, dy, w, h);
     camera.updateProjectionMatrix();
   }
   const ro = new ResizeObserver(resize);
@@ -1060,7 +1068,7 @@ export function createTower3D(canvas, opts = {}) {
       controls.enabled = false;
       // Дивимося трохи згори — понад поручнем балкона, що стоїть під циферблатом
       const target = new THREE.Vector3(0, HOME_R + 0.05 + CYD - 0.08, W3 / 2 + 0.05);
-      const pos = target.clone().add(new THREE.Vector3(0.15, 1.15, 3.1));
+      const pos = target.clone().add(new THREE.Vector3(0.17, 1.3, 3.5));
       mode = 'practice';
       flyTo(pos, target, firstStage ? 3200 : 1600);
       firstStage = false;
@@ -1084,6 +1092,18 @@ export function createTower3D(canvas, opts = {}) {
     /** Час доби для етапу 11 (хвилини від півночі) або null. */
     setDay(mins) { dayMins = mins; },
     overview() { goOverview(); },
+    /** Вільна від панелей частина полотна { x, y, w, h } у CSS-пікселях; null — усе полотно. */
+    setFrame(r) {
+      const same = r && view && ['x', 'y', 'w', 'h'].every(k => Math.abs(r[k] - view[k]) < 1);
+      if (same || (!r && !view)) return;
+      view = r;
+      resize();
+    },
+    /** Тло без завдання: стрілки не потрібні, планета повільно обертається. */
+    ambient() {
+      if (locked) this.setPractice(false);
+      if (mode !== 'over') goOverview();
+    },
     start() { if (running) return; running = true; last = 0; resize(); raf = requestAnimationFrame(frame); },
     stop() { running = false; cancelAnimationFrame(raf); },
     setQuality(h) { high = h; applyQuality(); },

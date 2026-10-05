@@ -171,11 +171,10 @@ button { font: inherit; color: inherit; }
 }
 #scene { display: block; width: 100%; height: auto; }
 
-/* 3D-сцена займає місце SVG-сцени тих самих пропорцій */
-.scene3d { display: block; width: 100%; aspect-ratio: 900 / 620; touch-action: none; background: #04121a; cursor: grab; }
+/* 3D-космос — на весь екран під інтерфейсом (див. «3D-тло» нижче) */
+.scene3d { position: fixed; inset: 0; z-index: 0; display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; background: #04121a; cursor: grab; }
+body:not(.bg-3d) .scene3d { display: none !important; }
 body.show-3d #scene { display: none; }
-body:not(.show-3d) .scene3d { display: none !important; }
-body.show-3d .scene-card { background: #04121a; }
 .scene3d-btn {
   position: absolute; left: 14px; top: 14px; z-index: 2;
   height: 38px; padding: 0 14px;
@@ -862,9 +861,7 @@ body.show-3d .scene-card { background: #04121a; }
   .stage { grid-template-columns: minmax(0, 1fr); gap: 18px; }
   .panel { max-height: none; overflow: visible; }
   #scene { max-height: 58vh; }
-  .scene3d { aspect-ratio: auto; height: min(58vh, 520px); }
   body[data-mode="practice"] #scene { max-height: 44vh; }
-  body[data-mode="practice"] .scene3d { height: min(44vh, 400px); }
 }
 
 @media (max-width: 600px) {
@@ -979,3 +976,60 @@ body.show-3d .scene-card { background: #04121a; }
 /* SVG-сцена «Гри» в тому ж стилі: кожна грань — з чорним контуром, як наліпка (циферблат — без нього, щоб не рябіло) */
 #world :is(polygon, rect, ellipse, circle):not(#face *):not(.night-stars *) { stroke: var(--ink); stroke-width: 1.6; stroke-linejoin: round; }
 #face > circle:first-child { stroke: var(--ink); stroke-width: 3; }
+
+/* ---------- 3D-тло ----------
+   Космос із планетою лежить на весь екран: він і тло, і експозиція, і головний об'єкт.
+   Інтерфейс — наліпки-картки поверх нього. Ліва частина сцени прозора: там стоїть вежа
+   (камера центрує її у вільній від панелей області — див. reframe у ui/scene3d.ts). */
+
+body.bg-3d { background: #04121a; }
+body.bg-3d .app { position: relative; z-index: 1; height: 100vh; height: 100dvh; min-height: 0; pointer-events: none; }
+body.bg-3d .topbar > *, body.bg-3d .panel, body.bg-3d .ctrl-set,
+body.bg-3d .scene-card > * { pointer-events: auto; }
+body.bg-3d .stage { align-items: stretch; min-height: 0; }
+body.bg-3d .scene-card #grab { pointer-events: auto; }
+
+/* Головний циферблат — 3D-вежа: рамка сцени зникає, лишаються підписи поверх космосу */
+body.bg-3d.show-3d .scene-card { background: transparent !important; border-color: transparent; box-shadow: none; overflow: visible; pointer-events: none; transition: none; }
+body.bg-3d.show-3d .scene-card > .readout, body.bg-3d.show-3d .scene-card > .stage-badge,
+body.bg-3d.show-3d .scene-card > .scene3d-btn { box-shadow: var(--hard); }
+/* Інший циферблат (римський, секундомір, розпорядок, парк) — пласка картка поверх космосу */
+body.bg-3d:not(.show-3d) .scene-card { align-self: center; pointer-events: auto; }
+
+body.bg-3d .panel { max-height: 100%; align-self: start; }
+body.bg-3d .controls { background: transparent; border-top: 0; padding-top: 0; margin: 0; }
+body.bg-3d .ctrl-set {
+  background: var(--paper); border: var(--bw) solid var(--ink); border-radius: 24px;
+  box-shadow: var(--hard); padding: 10px 16px; margin: 0 auto;
+}
+body.bg-3d .ctrl-set[hidden] { display: none; }
+body.bg-3d .ctrl-set:empty { display: none; }
+
+.sheet-grip { display: none; }
+
+/* Телефон: космос на весь екран, панель — шторка знизу, яку можна згорнути */
+@media (max-width: 960px) {
+  body.bg-3d .app { gap: 8px; padding-bottom: 0; }
+  body.bg-3d .stage { grid-template-rows: minmax(0, 1fr) auto; gap: 8px; }
+  body.bg-3d .scene-card { min-height: 0; }
+  body.bg-3d:not(.show-3d) .scene-card { align-self: stretch; display: grid; place-items: center; }
+  body.bg-3d:not(.show-3d) #scene { max-height: 100%; width: auto; max-width: 100%; }
+  body.bg-3d .panel {
+    max-height: 50vh; max-height: 50dvh; overflow-y: auto; overscroll-behavior: contain;
+    border-radius: 24px 24px 18px 18px; padding-top: 4px;
+  }
+  body.bg-3d[data-mode="practice"] .panel { max-height: 56dvh; }
+  body.bg-3d .sheet-grip {
+    display: block; width: 100%; height: 22px; border: 0; background: none; cursor: pointer; padding: 0;
+    position: sticky; top: -4px; z-index: 2;
+  }
+  body.bg-3d .sheet-grip span { display: block; width: 46px; height: 6px; margin: 6px auto; border-radius: 99px; background: var(--ink); opacity: .35; }
+  body.bg-3d.sheet-min .panel { max-height: 112px; overflow: hidden; }
+  body.bg-3d .controls { padding: 0 0 calc(8px + env(safe-area-inset-bottom)); }
+  body.bg-3d .ctrl-set { padding: 8px 10px; border-radius: 20px; width: 100%; }
+}
+/* У грі на телефоні місце в шторці — для питання й варіантів: Тік і так говорить уголос */
+@media (max-width: 960px) {
+  body.bg-3d[data-mode="practice"]:not(.sheet-min) .panel .buddy { display: none; }
+  body.bg-3d[data-mode="practice"] .quiz-card { margin-top: 0; }
+}
