@@ -1012,7 +1012,14 @@ export function createTower3D(canvas, opts = {}) {
   let handMins = 540, secFrac = 0, dayMins = null;
   let running = false, raf = 0, last = 0, firstStage = true;
   let locked = false;
-  let interactive = false;   // «Тепер ти!» в уроці: дитина тягне стрілки, камера не крутиться     // у грі камеру не крутимо: дитина тягне стрілки
+  let interactive = false;
+  /* Жовті сектори-підказки (половина, чверть) — лише на своїх етапах уроку, як на пласкому циферблаті;
+     далі й у грі вони закривали б пів циферблата */
+  function showAids() {
+    pHalf.visible = !locked && stage === 6;
+    pQ.visible = !locked && stage === 7;
+  }
+  showAids();   // «Тепер ти!» в уроці: дитина тягне стрілки, камера не крутиться     // у грі камеру не крутимо: дитина тягне стрілки
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 
   /* Якість: 2 — повна, 1 — простіша (телефони), 0 — мінімальна для слабких пристроїв.
@@ -1167,6 +1174,7 @@ export function createTower3D(canvas, opts = {}) {
       const next = Math.max(1, Math.min(11, i + 1));
       const moved = next !== stage;
       stage = next;
+      showAids();
       applyStage(animate && !firstStage);
       tikTarget = tikSpot(STAGE_CH[stage - 1]);
       if (moved || firstStage) cheerLocals();
@@ -1181,7 +1189,8 @@ export function createTower3D(canvas, opts = {}) {
       if (on === locked) return;
       locked = on;
       focusKey = null;
-      pHalf.visible = pQ.visible = pS.visible = pL.visible = !on;
+      pS.visible = pL.visible = !on;
+      showAids();
       railings.forEach(g => { g.visible = !on; });
       if (!on) { controls.enabled = true; return; }
       stage = 11;
