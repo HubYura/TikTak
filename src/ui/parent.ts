@@ -229,7 +229,9 @@ export function openReport(onReset: () => void): void {
       h('p', { text: it.how }),
       h('p', { class: 'r-need' }, h('b', { text: 'Знадобиться: ' }), it.need)))),
     h('p', { class: 'r-tip' }, plan.daily),
-    printBtn));
+    h('div', { class: 'r-plan-actions' }, printBtn,
+      h('a', { class: 'btn btn-sm r-print r-kit', href: '/print.html', target: '_blank', rel: 'noopener',
+        text: '✂ Паперовий годинник і картки' }))));
 
   // Рівні
   body.append(h('h3', { text: 'Рівні й пригоди' }));

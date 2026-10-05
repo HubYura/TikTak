@@ -778,7 +778,9 @@ body.show-3d .scene-card { background: #04121a; }
 .r-day-card h4 { margin: 8px 0 4px; font-size: 16px; font-weight: 900; }
 .r-day-card p { margin: 6px 0 0; font-size: 14.5px; line-height: 1.5; }
 .r-need { color: var(--ink-2); font-size: 13.5px !important; }
-.r-print { margin-top: 12px; background: var(--white); }
+.r-plan-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.r-print { background: var(--white); text-decoration: none; display: inline-flex; align-items: center; }
+.r-kit { background: var(--lime); }
 @media print {
   body.print-plan { background: #fff; }
   body.print-plan * { visibility: hidden; }
