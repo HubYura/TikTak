@@ -13,6 +13,7 @@ import {
   type ElapsedTask, type Option, type RoutineTask, type Trap
 } from '../core/questions';
 import { feelTask, judgeEstimate, type FeelTask } from '../core/feel';
+import { judgeHome, type HomeHint } from '../core/homeclock';
 import { pick, rnd, shuffle } from '../core/rng';
 import { TRAP_VIDEOS } from '../core/videos';
 import { angleDist, angleOf, digital, fromDial, toDial } from '../core/time';
@@ -31,7 +32,8 @@ type Task =
   | { type: 'clock'; plan: Plan; options: Option[]; style?: FaceStyle }
   | { type: 'routine'; t: RoutineTask }
   | { type: 'elapsed'; t: ElapsedTask }
-  | { type: 'feel'; t: FeelTask };
+  | { type: 'feel'; t: FeelTask }
+  | { type: 'home'; tries: number };
 
 let track: Track = { kind: 'level', idx: Math.min(app.p.level, app.p.unlocked) };
 let task: Task | null = null;
@@ -181,7 +183,7 @@ function newTask(): void {
 
 /** Звичайний циферблат — на 3D-вежі; інші стилі, секундомір і «Розпорядок дня» (там підказує небо) — у SVG. */
 export function sync3D(style: FaceStyle = task?.type === 'clock' ? task.style ?? 'teach' : 'teach'): void {
-  const in3D = !!task && ((task.type === 'clock' && style === 'teach') || task.type === 'elapsed');
+  const in3D = !!task && ((task.type === 'clock' && style === 'teach') || task.type === 'elapsed' || task.type === 'home');
   show3D(app.mode === 'practice' && in3D ? 'practice' : null, () => renderDial());
 }
 
@@ -193,7 +195,7 @@ function renderTask(): void {
   fb.hidden = true;
   $('pNext').hidden = true;
   $('pDunno').hidden = false;
-  const isSet = t.type === 'clock' && t.plan.kind === 'set';
+  const isSet = canSet(t);
   $('pCheck').hidden = !isSet;
   app.S.grab.style.display = isSet ? '' : 'none';
   $('sceneWrap').classList.toggle('can-drag', isSet);
@@ -218,7 +220,11 @@ function renderTask(): void {
   let options: Option[] = [];
   let wordy = false;
 
-  if (t.type === 'clock') {
+  if (t.type === 'home') {
+    text.innerHTML = '';
+    text.append(HOME_ASK, h('small', { class: 'hint', text: HOME_HINT }));
+    spoken = HOME_ASK + ' ' + HOME_HINT;
+  } else if (t.type === 'clock') {
     const { h: hh, m, kind } = t.plan;
     if (kind === 'set') {
       text.innerHTML = '';
@@ -270,7 +276,7 @@ function renderTask(): void {
   });
 
   // Питання про циферблат — Тік показує на нього рукою
-  if (t.type === 'clock') gesture('point', 1800);
+  if (t.type === 'clock' || t.type === 'home') gesture('point', 1800);
   speakNow(spoken);
 }
 
@@ -316,6 +322,7 @@ function rightText(): string {
   if (t.type === 'clock') return digital(t.plan.h, t.plan.m) + ' — ' + sayTime(t.plan.h, t.plan.m);
   if (t.type === 'routine') return correctLabel(t.t.options);
   if (t.type === 'feel') return t.t.mode === 'estimate' ? t.t.seconds + ' секунд' : correctLabel(t.t.options);
+  if (t.type === 'home') return '';
   return digital(t.t.end.h, t.t.end.m) + ' — ' + sayTime(t.t.end.h, t.t.end.m);
 }
 
@@ -354,6 +361,7 @@ function choose(o: Option, btn: HTMLButtonElement, options: Option[]): void {
 
 function checkHands(): void {
   const t = task;
+  if (!answered && t?.type === 'home') { checkHome(t); return; }
   if (answered || !t || t.type !== 'clock' || t.plan.kind !== 'set') return;
   const target = toDial(t.plan.h, t.plan.m);
   const got = Math.round(dial) % 720;
@@ -374,6 +382,7 @@ function checkHands(): void {
 function giveUp(): void {
   if (answered || !task) return;
   const t = task;
+  if (t.type === 'home') { revealHome(' Нічого страшного!'); return; }
   if (t.type === 'clock' && t.plan.kind === 'set') animateDial(toDial(t.plan.h, t.plan.m));
   else if (t.type === 'feel' && t.t.mode === 'estimate') {
     timerStart = 0;
@@ -393,6 +402,7 @@ function giveUp(): void {
 function hintFor(): string {
   const t = task!;
   if (t.type === 'clock') return track.kind === 'level' ? LEVELS[t.plan.level].tip : advOf('faces').tip;
+  if (t.type === 'home') return HOME_HINT;
   return advOf(t.type).tip;
 }
 
@@ -413,11 +423,7 @@ function finish(ok: boolean, exposed: Trap[], fell: Trap | undefined, srcEl: Ele
     if (!dunno) popover(anyOf(CHEER_UP), true);
     say(dunno ? 'Нічого страшного! Подивись пояснення — наступного разу вийде.' : anyOf(CHEER_SAY), dunno ? 'think' : 'oops', 2400, false);
   }
-  // Пояснення озвучуємо, а не лише показуємо — 6-річні ще погано читають
-  // Заголовок («Не зовсім») — окремим реченням, інакше він зливається з поясненням
-  const fb = $('qFb'), title = fb.querySelector('b')?.textContent || '';
-  const body = (fb.textContent || '').slice(title.length).trim();
-  speakNow(title.replace(/^[✅🤔💡]\s*/u, '').replace(/[^.!?]$/, '$&.') + ' ' + body);
+  speakFeedback();
 
   round.push(ok);
   p.totals.asked++;
@@ -436,14 +442,7 @@ function finish(ok: boolean, exposed: Trap[], fell: Trap | undefined, srcEl: Ele
   if (task!.type === 'clock' && scheduleReview(p, task!.plan, ok)) p.totals.fixed++;
   app.save();
 
-  $('pDunno').hidden = true;
-  $('pCheck').hidden = true;
-  const next = $('pNext');
-  next.hidden = false;
-  next.textContent = round.length >= ROUND ? 'Підсумок ➜' : 'Далі ➜';
-  requestAnimationFrame(() => next.focus({ preventScroll: true }));
-  app.S.grab.style.display = 'none';
-  $('sceneWrap').classList.remove('can-drag');
+  showNext(round.length >= ROUND ? 'Підсумок ➜' : 'Далі ➜');
 
   // «Скільки минуло?»: після відповіді прокручуємо стрілки до кінця — це і є пояснення
   if (task!.type === 'elapsed') animateDial(toDial(task!.t.end.h, task!.t.end.m), 1600);
@@ -453,7 +452,103 @@ function finish(ok: boolean, exposed: Trap[], fell: Trap | undefined, srcEl: Ele
   awardBadges();
 }
 
+/** Пояснення озвучуємо, а не лише показуємо — 6-річні ще погано читають.
+    Заголовок («Не зовсім») — окремим реченням, інакше він зливається з поясненням. */
+function speakFeedback(): void {
+  const fb = $('qFb'), title = fb.querySelector('b')?.textContent || '';
+  const body = (fb.textContent || '').slice(title.length).trim();
+  speakNow(title.replace(/^[✅🤔💡👀]\s*/u, '').replace(/[^.!?]$/, '$&.') + ' ' + body);
+}
+
+/** Кнопки після відповіді: «Далі» замість «Перевірити» й «Не знаю». */
+function showNext(label = 'Далі ➜'): void {
+  $('pDunno').hidden = true;
+  $('pCheck').hidden = true;
+  const next = $('pNext');
+  next.hidden = false;
+  next.textContent = label;
+  requestAnimationFrame(() => next.focus({ preventScroll: true }));
+  app.S.grab.style.display = 'none';
+  $('sceneWrap').classList.remove('can-drag');
+}
+
+/* ---------- «Годинник удома»: звіряємо зі справжнім часом ---------- */
+
+/** Після якого рівня відкривається: індекс «П’ятірками» + 1. */
+const HOME_NEEDS = 4;
+const HOME_ASK = 'Подивись на справжній годинник у себе вдома й постав стрілки на вежі так само.';
+const HOME_HINT = 'Якщо вдома є лише електронний годинник — подивись на нього й переклади час на стрілки.';
+const HOME_RETRY: Record<HomeHint, string> = {
+  hour: 'Довга стрілка стоїть добре, а коротка — на сусідньому числі. Яке число коротка стрілка вже пройшла?',
+  swap: 'Здається, стрілки помінялися місцями. Коротка показує години, а довга — хвилини.',
+  minute: 'Подивись уважно, на яке число показує довга стрілка, і порахуй хвилини п’ятірками.'
+};
+
+const homeOk = (H: number, M: number): string =>
+  ' Зараз ' + digital(H, M) + ' — ' + sayTime(H, M) + ' ' + partOfDay(H) + '. Ти вмієш читати справжній годинник!';
+const homeReveal = (H: number, M: number, lead: string): string =>
+  lead + ' Мій годинник каже, що зараз ' + digital(H, M) + ' — ' + sayTime(H, M) + ' ' + partOfDay(H) +
+  '. Порівняй зі стрілками вдома. Якщо вони інакші, може, ваш годинник спішить або відстає — спитай у дорослих.';
+
+const canSet = (t: Task): boolean => t.type === 'home' || (t.type === 'clock' && t.plan.kind === 'set');
+
+function startHome(): void {
+  answered = false;
+  anim = null;
+  secShown = null;
+  const now = new Date();
+  task = { type: 'home', tries: 0 };
+  // Стрілки стартують далеко від справжнього часу; небо — як надворі
+  const start = (toDial(now.getHours(), now.getMinutes()) + 150 + rnd(300)) % 720;
+  raw = dial = (Math.round(start / 5) * 5) % 720;
+  setSky(now.getHours() + now.getMinutes() / 60);
+  sync3D();
+  setFaceStyle(app.S, 'teach');
+  setStopwatch(app.S, false);
+  app.S.parts.fSec.el.classList.remove('on');
+  renderTracks();
+  $('pChip').textContent = '🏠 Годинник удома';
+  renderTask();
+  renderDial();
+  $('panel').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function checkHome(t: { type: 'home'; tries: number }): void {
+  const now = new Date(), H = now.getHours(), M = now.getMinutes();
+  const v = judgeHome(H, M, Math.round(dial) % 720);
+  if (v.ok) {
+    answered = true;
+    feedback(true, homeOk(H, M), '✅ Так і є!');
+    SFX.correct();
+    FX.buzz(28);
+    FX.cheer(3);
+    popover('🏠 ' + anyOf(PRAISE));
+    gesture('cheer', 1800);
+    speakFeedback();
+    showNext();
+    return;
+  }
+  if (t.tries++ === 0) {
+    SFX.wrong();
+    feedback(false, ' ' + HOME_RETRY[v.hint ?? 'minute'], '👀 Глянь ще раз');
+    gesture('think', 1600);
+    speakFeedback();
+    return;
+  }
+  revealHome('');
+}
+
+function revealHome(lead: string): void {
+  const now = new Date(), H = now.getHours(), M = now.getMinutes();
+  answered = true;
+  animateDial(toDial(H, M));
+  feedback(false, homeReveal(H, M, lead), '💡 Дивись, котра зараз');
+  speakFeedback();
+  showNext();
+}
+
 function nextTask(): void {
+  if (task?.type === 'home') { renderTracks(); newTask(); return; }
   if (round.length >= ROUND) finishRound();
   else newTask();
 }
@@ -561,6 +656,16 @@ function renderTracks(): void {
     b.addEventListener('click', () => { track = { kind: 'adv', id: a.id }; startTrack(); });
     adv.appendChild(b);
   });
+  // Справжній час рідко буває рівним — тож лише коли дитина вже читає хвилини п'ятірками
+  const home = task?.type === 'home', homeLocked = p.unlocked < HOME_NEEDS;
+  const hb = h('button', { class: 'level-btn adv home-btn' + (home ? ' is-active' : ''), type: 'button',
+    'aria-pressed': String(home),
+    title: homeLocked ? 'Відкриється після рівня «' + LEVELS[HOME_NEEDS - 1].name + '»' : 'Постав стрілки так, як на годиннику у тебе вдома' });
+  hb.append(h('span', { class: 'lv-ico', text: homeLocked ? '🔒' : '🏠' }), h('span', { class: 'lv-name', text: 'Годинник удома' }),
+    h('span', { class: 'stars home-note', text: 'справжній час' }));
+  (hb as HTMLButtonElement).disabled = homeLocked;
+  hb.addEventListener('click', startHome);
+  adv.appendChild(hb);
 
   $('pChip').textContent = track.kind === 'level'
     ? 'Рівень ' + (track.idx + 1) + ' · ' + LEVELS[track.idx].name
@@ -691,10 +796,10 @@ function renderDial(): void {
   renderHands(dial, secFrac);
   tower3d()?.setTime(dial, secFrac);
   const t = task;
-  if (t && t.type === 'clock' && t.plan.kind === 'set') {
+  if (t && canSet(t)) {
     const g = fromDial(dial);
     $('digital').textContent = digital(g.h, g.m);
-    $('verbal').textContent = answered ? 'правильне положення' : 'ти ставиш';
+    $('verbal').textContent = answered ? (t.type === 'home' ? 'зараз' : 'правильне положення') : 'ти ставиш';
   }
 }
 
@@ -723,7 +828,7 @@ function initDrag(): void {
 
   const down = (e: PointerEvent, el: Element) => {
     const t = task;
-    if (app.mode !== 'practice' || !t || t.type !== 'clock' || t.plan.kind !== 'set' || answered) return;
+    if (app.mode !== 'practice' || !t || !canSet(t) || answered) return;
     const o = dialOffset(e);
     if (!o) return;
     const { dx, dy } = o, r = Math.hypot(dx, dy);
@@ -773,7 +878,7 @@ function initDrag(): void {
     app.S.parts[mode === 'min' ? 'fMin' : 'fHour'].el.classList.remove('held');
     mode = null;
     grab.classList.remove('dragging');
-    const snap = task?.type === 'clock' ? LEVELS[task.plan.level].snap : snapOf();
+    const snap = task?.type === 'clock' ? LEVELS[task.plan.level].snap : task?.type === 'home' ? 5 : snapOf();
     raw = dial = (Math.round(dial / snap) * snap) % 720;
     renderDial();
   };
@@ -785,12 +890,12 @@ function initDrag(): void {
     if (app.mode !== 'practice' || document.querySelector('.overlay:not([hidden])')) return;
     const t = task;
     if (!t || answered || (e.target as Element).matches('input, textarea')) return;
-    if (t.type !== 'clock' || t.plan.kind !== 'set') {
+    if (!canSet(t)) {
       const n = Number(e.key);
       if (n >= 1 && n <= 4) ($('qOpts').children[n - 1] as HTMLButtonElement | undefined)?.click();
       return;
     }
-    const step = LEVELS[t.plan.level].snap;
+    const step = t.type === 'clock' ? LEVELS[t.plan.level].snap : 5;
     const moves: Record<string, number> = { ArrowRight: step, ArrowLeft: -step, ArrowUp: 60, ArrowDown: -60 };
     if (e.key in moves) {
       raw = dial = ((dial + moves[e.key]) % 720 + 720) % 720;
@@ -850,6 +955,19 @@ if (import.meta.env.DEV) {
         speakNow('Правильно: ' + digital(hh, mm) + ' — ' + sayTime(hh, mm));
         speakNow('Ти поставив(-ла) ' + digital(hh, mm) + ', а треба ' + digital(hh, mm) + ' — ' + sayTime(hh, mm) + '.');
         speakNow('Стрілки стоять правильно: ' + sayTime(hh, mm) + '.');
+      }
+    }
+    // «Годинник удома»: питання, підказки й відповіді в усі частини доби
+    startHome();
+    Object.values(HOME_RETRY).forEach(x => { feedback(false, ' ' + x, '👀 Глянь ще раз'); speakFeedback(); });
+    for (const hh of [0, 3, 7, 11, 12, 15, 19, 22]) {
+      for (const mm of [0, 15, 30, 42]) {
+        feedback(true, homeOk(hh, mm), '✅ Так і є!');
+        speakFeedback();
+        for (const lead of ['', ' Нічого страшного!']) {
+          feedback(false, homeReveal(hh, mm, lead), '💡 Дивись, котра зараз');
+          speakFeedback();
+        }
       }
     }
     // Репліки поза завданнями
