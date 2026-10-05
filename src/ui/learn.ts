@@ -6,6 +6,7 @@ import { digital, digital24 } from '../core/time';
 import { SFX } from '../lib/audio';
 import { STAGE_VIDEOS } from '../core/videos';
 import { say } from './buddy';
+import { tower3d } from './scene3d';
 import { $, app, h } from './state';
 import { videoButton } from './video';
 import { applyFocus, applyRevealSet, renderHands, setSky, showSun, visibleIds } from './view';
@@ -114,6 +115,13 @@ export function goTo(i: number, quiet = false): void {
   if (!app.p.seen.includes(cur)) { app.p.seen.push(cur); app.save(); }
 
   if (!st.day) { setSky(12); showSun(null); }
+  tower3d()?.setStage(cur, !quiet);
+  renderLearn();
+}
+
+/** 3D-сцена щойно з'явилась — показати їй поточний етап. */
+export function syncTower(): void {
+  tower3d()?.setStage(cur, false);
   renderLearn();
 }
 
@@ -128,6 +136,8 @@ function renderLearn(): void {
   const st = STAGES[cur];
   const mins = ((tm % 1440) + 1440) % 1440;
   renderHands(mins, mins % 1);
+  const t3 = tower3d();
+  if (t3) { t3.setTime(mins, mins % 1); t3.setDay(st.day ? mins : null); }
 
   if (st.time) {
     const read = (((st.snap ? target : tm) % 1440) + 1440) % 1440;
