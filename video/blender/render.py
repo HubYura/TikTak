@@ -59,15 +59,17 @@ COL = {
     'red': '#ff5a5f', 'gear': '#aab5c3', 'gearD': '#7d8a99'
 }
 
-SKY = [  # (з години, колір неба) — та сама палітра, що й у грі
-    (0, '#18264a'), (5, '#f3a26b'), (7, '#8fd8f5'), (18, '#ee8559'), (20, '#46598c'), (22, '#18264a')
+SKY = [  # (з години, верх неба, небо біля обрію) — та сама палітра, що й у грі (skyFor у scene.ts)
+    (0, '#18264a', '#34487a'), (5, '#f3a26b', '#ffdcb3'), (7, '#7ee3f2', '#c8f4fa'),
+    (18, '#ee8559', '#ffd29e'), (20, '#46598c', '#8579a8'), (22, '#18264a', '#34487a')
 ]
 
 def sky_at(h24):
-    col = SKY[0][1]
-    for h, c in SKY:
+    """(верх, обрій) неба о цій годині."""
+    col = SKY[0][1:]
+    for h, *c in SKY:
         if h24 >= h:
-            col = c
+            col = tuple(c)
     return col
 
 
@@ -284,11 +286,28 @@ def build(clip: Clip, args):
     nt = bg_mat.node_tree
     for n in list(nt.nodes):
         nt.nodes.remove(n)
+    # Небо — градієнт, як у грі: світліше біля обрію, тож пагорб на заході сонця не зливається з небом
     em = nt.nodes.new('ShaderNodeEmission')
-    em.name = 'SkyColor'
     out = nt.nodes.new('ShaderNodeOutputMaterial')
     nt.links.new(em.outputs[0], out.inputs['Surface'])
-    em.inputs['Color'].default_value = srgb(COL['space'])
+    tc = nt.nodes.new('ShaderNodeTexCoord')
+    xyz = nt.nodes.new('ShaderNodeSeparateXYZ')
+    nt.links.new(tc.outputs['Object'], xyz.inputs[0])
+    rng = nt.nodes.new('ShaderNodeMapRange')
+    rng.clamp = True
+    rng.inputs['From Min'].default_value, rng.inputs['From Max'].default_value = -4.0, 7.0
+    nt.links.new(xyz.outputs['Y'], rng.inputs['Value'])
+    mix = nt.nodes.new('ShaderNodeMix')
+    mix.data_type = 'RGBA'
+    nt.links.new(rng.outputs['Result'], mix.inputs['Factor'])
+    a_in = next(i for i in mix.inputs if i.name == 'A' and i.type == 'RGBA')
+    b_in = next(i for i in mix.inputs if i.name == 'B' and i.type == 'RGBA')
+    nt.links.new(next(o for o in mix.outputs if o.type == 'RGBA'), em.inputs['Color'])
+    for sock, name in ((a_in, 'SkyHorizon'), (b_in, 'SkyTop')):
+        rgb = nt.nodes.new('ShaderNodeRGB')
+        rgb.name = name
+        rgb.outputs[0].default_value = srgb(COL['space'])
+        nt.links.new(rgb.outputs[0], sock)
     rect('Sky', 60, 40, bg_mat, coll, (0, 0, -5))
     # Космос: зорі — лише там, де не показуємо денне небо
     if not day:
@@ -298,7 +317,11 @@ def build(clip: Clip, args):
         for i in range(46):
             x, y = rnd.uniform(-14, 14), rnd.uniform(-2.5, 8)
             disc(f'Star{i}', rnd.choice([0.03, 0.045, 0.07]), star, coll, (x, y, -4.97), seg=8)
+    # Чорний контур, як усюди в грі: без нього кораловий пагорб зливається із заходом сонця
+    ink, rim = mat('HillInk', COL['tikRim']), 0.14
+    disc('HillBackRim', 1, ink, coll, (6, -6.1, -4.905), sx=8 + rim, sy=2.9 + rim)
     disc('HillBack', 1, mat('GrassD', COL['grassD']), coll, (6, -6.1, -4.9), sx=8, sy=2.9)
+    disc('HillRim', 1, ink, coll, (-1.5, -6.8, -4.805), sx=11 + rim, sy=3.3 + rim)
     disc('Hill', 1, mat('Grass', COL['grass']), coll, (-1.5, -6.8, -4.8), sx=11, sy=3.3)
 
     def tree(name, x, y, s, bush=False):
@@ -540,11 +563,12 @@ def build(clip: Clip, args):
             a.keyframe_insert('rotation_euler', index=2, frame=frame)
 
     def key_sky(frame, mins):
-        col = srgb(sky_at(int(mins // 60) % 24)) if day else srgb(COL['space'])
-        node = bg_mat.node_tree.nodes['SkyColor']
-        node.inputs['Color'].default_value = col
+        top, horizon = sky_at(int(mins // 60) % 24) if day else (COL['space'], COL['space'])
         set_interp('LINEAR')
-        node.inputs['Color'].keyframe_insert('default_value', frame=frame)
+        for name, col in (('SkyTop', top), ('SkyHorizon', horizon)):
+            node = bg_mat.node_tree.nodes[name]
+            node.outputs[0].default_value = srgb(col)
+            node.outputs[0].keyframe_insert('default_value', frame=frame)
         h24 = (mins / 60) % 24
         is_day = 6 <= h24 < 20
         key_visible(sun, frame, day and is_day)
