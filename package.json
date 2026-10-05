@@ -9,9 +9,11 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "video:brief": "node --experimental-strip-types --no-warnings scripts/video-brief.ts"
+    "video:brief": "node --experimental-strip-types --no-warnings scripts/video-brief.ts",
+    "e2e": "playwright test"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/three": "^0.160.0",
     "typescript": "^7.0.2",
     "vite": "^8.3.1",

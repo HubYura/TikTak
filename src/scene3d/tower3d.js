@@ -1225,6 +1225,8 @@ export function createTower3D(canvas, opts = {}) {
     /** Час доби для етапу 11 (хвилини від півночі) або null. */
     setDay(mins) { dayMins = mins; },
     overview() { goOverview(); },
+    /** Для автотестів: що зараз видно на вежі. */
+    debugState() { return { stage, practice: locked, half: pHalf.visible, quarter: pQ.visible, ghostOpacity: ghostMat.opacity, tier }; },
     /** Що пульсує на циферблаті: 'h' | 'm' | 's' | 'nums' | 'ticks' або null. */
     setFocus(k) { focusKey = k; },
     /** Урок: дитина щось робить на вежі — камеру пальцем не крутимо. */

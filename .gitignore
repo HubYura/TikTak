@@ -20,3 +20,5 @@ dev-dist/
 video/out/
 video/voices/
 __pycache__/
+test-results/
+playwright-report/
