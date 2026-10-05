@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STORE, STORE_V1, blankProgress, loadProgress, logAnswer, migrate, saveProgress } from '../src/core/progress';
+import { STORE, STORE_V1, blankProgress, dailyDone, loadProgress, logAnswer, markDaily, migrate, saveProgress } from '../src/core/progress';
 
 const mem = (init: Record<string, string> = {}) => {
   const m = new Map(Object.entries(init));
@@ -48,5 +48,26 @@ describe('прогрес', () => {
     for (let i = 0; i < 70; i++) logAnswer(p, i % 2 === 0, new Date(2026, 0, 1 + i));
     expect(Object.keys(p.days)).toHaveLength(60);
     expect(p.days['2026-03-11']).toEqual({ asked: 1, right: 0, ms: 0 });
+  });
+});
+
+describe('хвилинка часу', () => {
+  it('рахує дні поспіль і раз на день', () => {
+    const p = blankProgress(5);
+    expect(markDaily(p, new Date(2026, 9, 5, 8))).toBe(true);
+    expect(markDaily(p, new Date(2026, 9, 5, 19))).toBe(false);
+    expect(markDaily(p, new Date(2026, 9, 6, 8))).toBe(true);
+    expect(p.daily).toMatchObject({ streak: 2, best: 2, count: 2 });
+    expect(dailyDone(p, new Date(2026, 9, 6, 22))).toBe(true);
+    markDaily(p, new Date(2026, 9, 9, 8));
+    expect(p.daily).toMatchObject({ streak: 1, best: 2, count: 3 });
+  });
+
+  it('переживає збереження й зіпсовані дані', () => {
+    const p = blankProgress(5);
+    markDaily(p, new Date(2026, 0, 31));
+    markDaily(p, new Date(2026, 1, 1));
+    expect(migrate(JSON.parse(JSON.stringify(p)), 5)!.daily.streak).toBe(2);
+    expect(migrate({ ...p, daily: { last: 'вчора', streak: 'x' } }, 5)!.daily).toEqual({ last: '', streak: 0, best: 0, count: 0 });
   });
 });

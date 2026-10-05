@@ -180,7 +180,8 @@ export function openReport(onReset: () => void): void {
       tile(String(active30), 'днів із грою за місяць'),
       tile(minutes ? minutes + ' хв' : p.totals.asked ? '<1 хв' : '0 хв', 'у грі загалом'),
       tile(totalStars(p) + ' / ' + MAX_STARS, 'зірок'),
-      tile(String(p.totals.bestStreak), 'найкраща серія')),
+      tile(String(p.totals.bestStreak), 'найкраща серія'),
+      tile(String(p.daily.best), 'днів поспіль «хвилинки часу» (рекорд)')),
 
     h('h3', { text: 'Активність за 2 тижні' }),
     activityChart(),
@@ -229,7 +230,9 @@ export function openReport(onReset: () => void): void {
       h('p', { text: it.how }),
       h('p', { class: 'r-need' }, h('b', { text: 'Знадобиться: ' }), it.need)))),
     h('p', { class: 'r-tip' }, plan.daily),
-    printBtn));
+    h('div', { class: 'r-plan-actions' }, printBtn,
+      h('a', { class: 'btn btn-sm r-print r-kit', href: '/print.html', target: '_blank', rel: 'noopener',
+        text: '✂ Паперовий годинник і картки' }))));
 
   // Рівні
   body.append(h('h3', { text: 'Рівні й пригоди' }));

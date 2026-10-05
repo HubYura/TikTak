@@ -7,13 +7,13 @@ import {
   unlockLine, unlockWhat, type AdventureId
 } from '../core/content';
 import { partOfDay, sayTime } from '../core/phrasing';
-import { logAnswer, type LevelRec } from '../core/progress';
+import { dailyDone, logAnswer, markDaily, type LevelRec } from '../core/progress';
 import {
   ROUTINE, diagnoseSet, elapsedTask, readOptions, routineTask, sayOptions, trapsFor,
   type ElapsedTask, type Option, type RoutineTask, type Trap
 } from '../core/questions';
 import { feelTask, judgeEstimate, type FeelTask } from '../core/feel';
-import { judgeHome, type HomeHint } from '../core/homeclock';
+import { homeSnap, homeTolerance, judgeHome, type HomeHint } from '../core/homeclock';
 import { pick, rnd, shuffle } from '../core/rng';
 import { TRAP_VIDEOS } from '../core/videos';
 import { angleDist, angleOf, digital, fromDial, toDial } from '../core/time';
@@ -85,7 +85,8 @@ export function enterPractice(): void {
   setSky(12);
   showSun(null);
   startTrack();
-  say('Час гри! Обери відповідь або покрути стрілки.', 'happy', 2200, false);
+  if (dailyDone(app.p)) say('Час гри! Обери відповідь або покрути стрілки.', 'happy', 2200, false);
+  else say(DAILY_ASK, 'happy', 4200, false);
 }
 
 function startTrack(): void {
@@ -474,8 +475,9 @@ function showNext(label = 'Далі ➜'): void {
 
 /* ---------- «Годинник удома»: звіряємо зі справжнім часом ---------- */
 
-/** Після якого рівня відкривається: індекс «П’ятірками» + 1. */
-const HOME_NEEDS = 4;
+const DAILY_ASK = 'Час для хвилинки часу! Глянь на годинник удома й натисни «Годинник удома».';
+/** Крок стрілок у «Годиннику вдома» — за рівнем дитини (див. homeSnap). */
+let homeStep = 5;
 const HOME_ASK = 'Подивись на справжній годинник у себе вдома й постав стрілки на вежі так само.';
 const HOME_HINT = 'Якщо вдома є лише електронний годинник — подивись на нього й переклади час на стрілки.';
 const HOME_RETRY: Record<HomeHint, string> = {
@@ -483,9 +485,14 @@ const HOME_RETRY: Record<HomeHint, string> = {
   swap: 'Здається, стрілки помінялися місцями. Коротка показує години, а довга — хвилини.',
   minute: 'Подивись уважно, на яке число показує довга стрілка, і порахуй хвилини п’ятірками.'
 };
+/** На ранніх рівнях дитина ще не рахує хвилини — підказуємо простіше. */
+const HOME_RETRY_EASY = 'Подивись уважно, куди показує коротка стрілка на годиннику вдома. Довга — нагорі чи внизу?';
 
 const homeOk = (H: number, M: number): string =>
   ' Зараз ' + digital(H, M) + ' — ' + sayTime(H, M) + ' ' + partOfDay(H) + '. Ти вмієш читати справжній годинник!';
+/** Після першої за день «хвилинки» — скільки днів поспіль. */
+const dailyLine = (streak: number): string =>
+  streak > 1 ? ' Хвилинка часу — днів поспіль: ' + streak + '!' : ' Хвилинку часу на сьогодні зроблено!';
 const homeReveal = (H: number, M: number, lead: string): string =>
   lead + ' Мій годинник каже, що зараз ' + digital(H, M) + ' — ' + sayTime(H, M) + ' ' + partOfDay(H) +
   '. Порівняй зі стрілками вдома. Якщо вони інакші, може, ваш годинник спішить або відстає — спитай у дорослих.';
@@ -498,9 +505,10 @@ function startHome(): void {
   secShown = null;
   const now = new Date();
   task = { type: 'home', tries: 0 };
+  homeStep = homeSnap(LEVELS[Math.min(app.p.unlocked, LEVELS.length - 1)].snap);
   // Стрілки стартують далеко від справжнього часу; небо — як надворі
   const start = (toDial(now.getHours(), now.getMinutes()) + 150 + rnd(300)) % 720;
-  raw = dial = (Math.round(start / 5) * 5) % 720;
+  raw = dial = (Math.round(start / homeStep) * homeStep) % 720;
   setSky(now.getHours() + now.getMinutes() / 60);
   sync3D();
   setFaceStyle(app.S, 'teach');
@@ -515,10 +523,14 @@ function startHome(): void {
 
 function checkHome(t: { type: 'home'; tries: number }): void {
   const now = new Date(), H = now.getHours(), M = now.getMinutes();
-  const v = judgeHome(H, M, Math.round(dial) % 720);
+  const v = judgeHome(H, M, Math.round(dial) % 720, homeTolerance(homeStep));
   if (v.ok) {
     answered = true;
-    feedback(true, homeOk(H, M), '✅ Так і є!');
+    const first = markDaily(app.p);
+    app.save();
+    // Стрілки доходять до точного часу: на ранніх рівнях видно, що «майже восьма» — це трохи до 8
+    animateDial(toDial(H, M));
+    feedback(true, homeOk(H, M) + (first ? dailyLine(app.p.daily.streak) : ''), '✅ Так і є!');
     SFX.correct();
     FX.buzz(28);
     FX.cheer(3);
@@ -526,11 +538,15 @@ function checkHome(t: { type: 'home'; tries: number }): void {
     gesture('cheer', 1800);
     speakFeedback();
     showNext();
+    renderTracks();
+    $('pChip').textContent = '🏠 Годинник удома';
+    awardBadges();
     return;
   }
   if (t.tries++ === 0) {
     SFX.wrong();
-    feedback(false, ' ' + HOME_RETRY[v.hint ?? 'minute'], '👀 Глянь ще раз');
+    const tip = homeStep >= 30 && v.hint === 'minute' ? HOME_RETRY_EASY : HOME_RETRY[v.hint ?? 'minute'];
+    feedback(false, ' ' + tip, '👀 Глянь ще раз');
     gesture('think', 1600);
     speakFeedback();
     return;
@@ -656,14 +672,13 @@ function renderTracks(): void {
     b.addEventListener('click', () => { track = { kind: 'adv', id: a.id }; startTrack(); });
     adv.appendChild(b);
   });
-  // Справжній час рідко буває рівним — тож лише коли дитина вже читає хвилини п'ятірками
-  const home = task?.type === 'home', homeLocked = p.unlocked < HOME_NEEDS;
-  const hb = h('button', { class: 'level-btn adv home-btn' + (home ? ' is-active' : ''), type: 'button',
-    'aria-pressed': String(home),
-    title: homeLocked ? 'Відкриється після рівня «' + LEVELS[HOME_NEEDS - 1].name + '»' : 'Постав стрілки так, як на годиннику у тебе вдома' });
-  hb.append(h('span', { class: 'lv-ico', text: homeLocked ? '🔒' : '🏠' }), h('span', { class: 'lv-name', text: 'Годинник удома' }),
-    h('span', { class: 'stars home-note', text: 'справжній час' }));
-  (hb as HTMLButtonElement).disabled = homeLocked;
+  // «Хвилинка часу» — раз на день звірити стрілки з годинником удома; доступна з першого рівня
+  const home = task?.type === 'home', done = dailyDone(p);
+  const hb = h('button', { class: 'level-btn adv home-btn' + (home ? ' is-active' : '') + (done ? '' : ' due'), type: 'button',
+    'aria-pressed': String(home), title: 'Постав стрілки так, як на годиннику у тебе вдома' });
+  hb.append(h('span', { class: 'lv-ico', text: '🏠' }), h('span', { class: 'lv-name', text: 'Годинник удома' }),
+    h('span', { class: 'stars home-note', text: done ? '✓ сьогодні' + (p.daily.streak > 1 ? ' · 🔥' + p.daily.streak : '')
+      : p.daily.streak ? '🔥 ' + p.daily.streak + ' — не перерви!' : 'хвилинка часу' }));
   hb.addEventListener('click', startHome);
   adv.appendChild(hb);
 
@@ -878,7 +893,7 @@ function initDrag(): void {
     app.S.parts[mode === 'min' ? 'fMin' : 'fHour'].el.classList.remove('held');
     mode = null;
     grab.classList.remove('dragging');
-    const snap = task?.type === 'clock' ? LEVELS[task.plan.level].snap : task?.type === 'home' ? 5 : snapOf();
+    const snap = task?.type === 'clock' ? LEVELS[task.plan.level].snap : task?.type === 'home' ? homeStep : snapOf();
     raw = dial = (Math.round(dial / snap) * snap) % 720;
     renderDial();
   };
@@ -895,7 +910,7 @@ function initDrag(): void {
       if (n >= 1 && n <= 4) ($('qOpts').children[n - 1] as HTMLButtonElement | undefined)?.click();
       return;
     }
-    const step = t.type === 'clock' ? LEVELS[t.plan.level].snap : 5;
+    const step = t.type === 'clock' ? LEVELS[t.plan.level].snap : homeStep;
     const moves: Record<string, number> = { ArrowRight: step, ArrowLeft: -step, ArrowUp: 60, ArrowDown: -60 };
     if (e.key in moves) {
       raw = dial = ((dial + moves[e.key]) % 720 + 720) % 720;
@@ -959,7 +974,9 @@ if (import.meta.env.DEV) {
     }
     // «Годинник удома»: питання, підказки й відповіді в усі частини доби
     startHome();
-    Object.values(HOME_RETRY).forEach(x => { feedback(false, ' ' + x, '👀 Глянь ще раз'); speakFeedback(); });
+    [...Object.values(HOME_RETRY), HOME_RETRY_EASY].forEach(x => { feedback(false, ' ' + x, '👀 Глянь ще раз'); speakFeedback(); });
+    speakNow(DAILY_ASK);
+    for (const n of [1, 2, 3, 4, 5, 6, 7, 10, 14, 21, 30]) speakNow(dailyLine(n).trim());
     for (const hh of [0, 3, 7, 11, 12, 15, 19, 22]) {
       for (const mm of [0, 15, 30, 42]) {
         feedback(true, homeOk(hh, mm), '✅ Так і є!');

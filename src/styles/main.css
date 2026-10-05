@@ -576,6 +576,12 @@ body.show-3d .scene-card { background: #04121a; }
   font-weight: 900;
 }
 .level-btn.adv .lv-ico { background: var(--pink); font-size: 18px; }
+/* «Хвилинка часу» ще не зроблена сьогодні — кнопка м'яко кличе */
+.home-btn .lv-ico { background: var(--sun); }
+.home-btn.due { background: var(--lime); animation: home-call 2.4s ease-in-out infinite; }
+.home-note { letter-spacing: 0; font-size: 12px; }
+@keyframes home-call { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); } }
+@media (prefers-reduced-motion: reduce) { .home-btn.due { animation: none; } }
 .level-btn .lv-name { font-size: 14.5px; font-weight: 900; line-height: 1.15; }
 .level-btn .stars { font-size: 14px; color: var(--orange); letter-spacing: 1px; }
 .level-btn.is-active { background: var(--sun); }
@@ -778,7 +784,9 @@ body.show-3d .scene-card { background: #04121a; }
 .r-day-card h4 { margin: 8px 0 4px; font-size: 16px; font-weight: 900; }
 .r-day-card p { margin: 6px 0 0; font-size: 14.5px; line-height: 1.5; }
 .r-need { color: var(--ink-2); font-size: 13.5px !important; }
-.r-print { margin-top: 12px; background: var(--white); }
+.r-plan-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.r-print { background: var(--white); text-decoration: none; display: inline-flex; align-items: center; }
+.r-kit { background: var(--lime); }
 @media print {
   body.print-plan { background: #fff; }
   body.print-plan * { visibility: hidden; }

@@ -18,6 +18,13 @@ export const dialDiff = (a: number, b: number): number => ((((a - b) % 720) + 10
 /** Скільки хвилин запасу: 5 на крок стрілки й ще трохи на неточний домашній годинник. */
 export const HOME_TOLERANCE = 6;
 
+/** Крок стрілок за рівнем дитини: на «Цілих годинах» досить поставити найближчу годину,
+    на «Чвертях» — найближчу чверть; точніше за п'ятірки не вимагаємо. */
+export const homeSnap = (levelSnap: number): number => Math.max(5, levelSnap);
+
+/** Запас — пів кроку (найближче положення) плюс трохи на неточний годинник. */
+export const homeTolerance = (snap: number): number => Math.max(HOME_TOLERANCE, snap / 2 + 3);
+
 export function judgeHome(nowH24: number, nowM: number, got: number, tol = HOME_TOLERANCE): HomeVerdict {
   const now = toDial(nowH24, nowM);
   const off = dialDiff(got, now);
