@@ -1020,7 +1020,7 @@ body.bg-3d .ctrl-set:empty { display: none; }
     max-height: 50vh; max-height: 50dvh; overflow-y: auto; overscroll-behavior: contain;
     border-radius: 24px 24px 18px 18px; padding-top: 4px;
   }
-  body.bg-3d[data-mode="practice"] .panel { max-height: 56dvh; }
+  body.bg-3d[data-mode="practice"] .panel { max-height: 47dvh; }
   body.bg-3d .sheet-grip {
     display: block; width: 100%; height: 22px; border: 0; background: none; cursor: pointer; padding: 0;
     position: sticky; top: -4px; z-index: 2;
@@ -1067,3 +1067,13 @@ body.bg-3d .ctrl-set:empty { display: none; }
 /* Якщо в панелі є ще вміст нижче — легка тінь унизу підказує, що її можна гортати */
 body.bg-3d .panel { --fade: linear-gradient(#000 calc(100% - 26px), transparent); }
 body.bg-3d .panel.can-scroll { -webkit-mask-image: var(--fade); mask-image: var(--fade); }
+/* Урок: картку, яку Тік зараз читає, видно; дотик до картки — Тік читає її */
+#panelLearn .card { cursor: pointer; transition: transform .2s cubic-bezier(.3, 1.5, .5, 1), box-shadow .2s; }
+#panelLearn .card h3::after { content: ' 🔊'; opacity: .45; font-size: 12px; }
+#panelLearn .card.reading { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
+#panelLearn .card.reading h3::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { #panelLearn .card.reading { transform: none; } }
+
+/* «Тепер ти!» у картці «Спробуй сам» і на вежі */
+.try-btn { margin-top: 10px; }
+body.learn-try .scene3d { cursor: pointer; }

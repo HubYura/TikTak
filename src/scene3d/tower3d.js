@@ -920,16 +920,31 @@ export function createTower3D(canvas, opts = {}) {
   /* ---------- Керування з гри ---------- */
   let handMins = 540, secFrac = 0, dayMins = null;
   let running = false, raf = 0, last = 0, firstStage = true;
-  let locked = false;     // у грі камеру не крутимо: дитина тягне стрілки
+  let locked = false;
+  let interactive = false;   // «Тепер ти!» в уроці: дитина тягне стрілки, камера не крутиться     // у грі камеру не крутимо: дитина тягне стрілки
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 
+  /* Якість: 2 — повна, 1 — простіша (телефони), 0 — мінімальна для слабких пристроїв.
+     Сцена на весь екран, тож якщо кадрів замало, сама знижує якість на ступінь (і назад не піднімає — без миготіння). */
+  let tier = high ? 2 : 1;
   function applyQuality() {
-    renderer.setPixelRatio(Math.min(devicePixelRatio, high ? 1.75 : 1));
-    bloom.enabled = high;
-    key.castShadow = high;
-    skyU.uOct.value = high ? 5 : 3;
-    grass.count = high ? grass.userData.max : Math.floor(grass.userData.max * 0.4);
+    // Телефони мають щільні екрани (2–3×): менше 2× — уже помітні «драбинки», тож економимо на ефектах, а не на чіткості
+    renderer.setPixelRatio(Math.min(devicePixelRatio, [1.25, 2, 2][tier]));
+    bloom.enabled = tier === 2;
+    key.castShadow = tier === 2;
+    skyU.uOct.value = tier === 2 ? 5 : 3;
+    grass.count = Math.floor(grass.userData.max * [0.15, 0.4, 1][tier]);
     resize();
+  }
+  let perfT = 0, perfN = 0, perfSkip = 3;   // перші секунди не рахуємо: компіляція шейдерів, підвантаження
+  function watchPerf(dt) {
+    if (tier === 0 || !dt) return;
+    if (perfSkip > 0) { perfSkip -= dt; return; }
+    perfT += dt; perfN++;
+    if (perfT < 2.5) return;
+    const fps = perfN / perfT;
+    perfT = 0; perfN = 0;
+    if (fps < 38) { tier--; high = tier === 2; applyQuality(); perfSkip = 1.5; }
   }
 
   /* Полотно може лежати під панелями на весь екран. view — вільна від них частина (у пікселях полотна):
@@ -1040,10 +1055,11 @@ export function createTower3D(canvas, opts = {}) {
       camera.position.copy(fly.curve.getPoint(k));
       controls.target.copy(fly.ft).lerp(fly.tt, k);
       camera.lookAt(controls.target);
-      if (p >= 1) { const th = fly.then; fly = null; controls.enabled = !locked; if (th) th(); }
+      if (p >= 1) { const th = fly.then; fly = null; controls.enabled = !locked && !interactive; if (th) th(); }
     } else if (!locked) controls.update();
 
     composer.render();
+    watchPerf(dt);
     raf = requestAnimationFrame(frame);
   }
 
@@ -1111,6 +1127,8 @@ export function createTower3D(canvas, opts = {}) {
     overview() { goOverview(); },
     /** Що пульсує на циферблаті: 'h' | 'm' | 's' | 'nums' | 'ticks' або null. */
     setFocus(k) { focusKey = k; },
+    /** Урок: дитина щось робить на вежі — камеру пальцем не крутимо. */
+    setInteractive(on) { interactive = on; if (!fly) controls.enabled = !locked && !on; if (on) controls.autoRotate = false; },
     /** Вільна від панелей частина полотна { x, y, w, h } у CSS-пікселях; null — усе полотно. */
     setFrame(r) {
       const same = r && view && ['x', 'y', 'w', 'h'].every(k => Math.abs(r[k] - view[k]) < 1);
@@ -1123,9 +1141,9 @@ export function createTower3D(canvas, opts = {}) {
       if (locked) this.setPractice(false);
       if (mode !== 'over') goOverview();
     },
-    start() { if (running) return; running = true; last = 0; resize(); raf = requestAnimationFrame(frame); },
+    start() { if (running) return; running = true; last = 0; perfSkip = 1.5; perfT = 0; perfN = 0; resize(); raf = requestAnimationFrame(frame); },
     stop() { running = false; cancelAnimationFrame(raf); },
-    setQuality(h) { high = h; applyQuality(); },
+    setQuality(h) { high = h; tier = h ? 2 : 1; applyQuality(); },
     get high() { return high; },
     dispose() { this.stop(); ro.disconnect(); renderer.dispose(); }
   };

@@ -21,6 +21,7 @@ import { SFX } from '../lib/audio';
 import { FX } from '../lib/fx';
 import { CX, CY, FACE_NAMES, R, setFaceStyle, setStopwatch, type FaceStyle } from '../scene/scene';
 import { bump, gesture, popover, say, speakAfter, speakNow, speakTap } from './buddy';
+import { LESSON_LINES } from './learn';
 import { show3D, tower3d } from './scene3d';
 import { $, anyOf, app, h } from './state';
 import { videoButton } from './video';
@@ -997,6 +998,8 @@ if (import.meta.env.DEV) {
         }
       }
     }
+    // Уроки: Тік зачитує всі картки етапів
+    LESSON_LINES().forEach(s => speakNow(s));
     // Репліки поза завданнями
     STAGE_SAY.forEach(s => speakNow(s));
     [ROUND_PASS_SAY, ROUND_FAIL_SAY, VOICE_ON_SAY, RESET_SAY].forEach(s => speakNow(s));

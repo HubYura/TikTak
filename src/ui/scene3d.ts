@@ -17,7 +17,7 @@ function webgl(): boolean {
 }
 
 /* Яка частина екрана вільна від шапки, панелі й кнопок — там і стоїть вежа */
-function freeRect(): { x: number; y: number; w: number; h: number } {
+export function freeRect(): { x: number; y: number; w: number; h: number } {
   const W = innerWidth, H = innerHeight;
   const top = $('app').querySelector('.topbar')?.getBoundingClientRect().bottom ?? 0;
   const ctrl = $('app').querySelector('.controls')?.getBoundingClientRect();
@@ -87,6 +87,9 @@ export function show3D(next: Scene3DMode, ready?: (t: Tower3D) => void): void {
 }
 
 export const tower3d = (): Tower3D | null => (wanted ? tower : null);
+
+// Для перевірок у режимі розробки
+if (import.meta.env.DEV) (window as unknown as { __tower3d: () => Tower3D | null }).__tower3d = () => tower;
 
 // Вкладка у фоні — нічого не малюємо
 document.addEventListener('visibilitychange', () => {

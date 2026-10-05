@@ -266,7 +266,8 @@ app.p.park = Array.from(new Set([...app.p.park, ...PARK.filter(a => app.S.park[a
 renderScore();
 awardBadges();
 setMode('learn');
-setPlaying(app.p.welcomed);
+// Урок не стартує сам: дитина могла прийти пограти. Тік лише вітається, поки не натиснуть ▶
+setPlaying(false);
 requestAnimationFrame(frame);
 
 if (!app.p.welcomed) $('welcome').hidden = false;
