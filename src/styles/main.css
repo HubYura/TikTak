@@ -521,6 +521,19 @@ body.show-3d .scene-card { background: #04121a; }
 .opt.right { background: var(--lime); animation: bounce-in .5s cubic-bezier(.2, 1.6, .4, 1); }
 .opt.wrong { background: var(--orange); animation: wobble .4s ease; }
 .opt.faded { opacity: .4; }
+/* Варіант + кнопка «послухати» для дітей, які ще не читають */
+.opt-row { display: flex; gap: 8px; align-items: stretch; }
+.opt-row .opt { flex: 1 1 auto; min-width: 0; }
+.opt-ear {
+  flex: 0 0 auto; width: 54px; font-size: 22px; line-height: 1;
+  border: var(--bw) solid var(--ink); border-radius: 16px; background: var(--cyan);
+  box-shadow: var(--hard-sm); cursor: pointer;
+}
+.opt-ear:hover:not(:disabled) { background: var(--sun); }
+.opt-ear:active:not(:disabled) { transform: translate(3px, 3px); box-shadow: none; }
+.opt-ear:disabled { opacity: .35; cursor: default; }
+.opt.heard { animation: heard .6s ease; }
+@keyframes heard { 30% { background: var(--cyan); } }
 @keyframes bounce-in { 0% { transform: scale(1); } 45% { transform: scale(1.08) rotate(-2deg); } 100% { transform: scale(1); } }
 @keyframes wobble { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
 

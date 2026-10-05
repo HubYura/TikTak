@@ -29,7 +29,8 @@ export interface Progress {
   review: ReviewItem[];
   days: Record<string, DayRec>;
   daily: DailyRec;
-  settings: { voice: boolean; autoRead: boolean };
+  /** readOptions — зачитувати варіанти відповідей (для дітей, які ще не читають). */
+  settings: { voice: boolean; autoRead: boolean; readOptions: boolean };
 }
 
 export const STORE_V1 = 'chasopark.progress.v1';
@@ -53,7 +54,7 @@ export function blankProgress(levels: number): Progress {
     review: [],
     days: {},
     daily: { last: '', streak: 0, best: 0, count: 0 },
-    settings: { voice: true, autoRead: true }
+    settings: { voice: true, autoRead: true, readOptions: true }
   };
 }
 
@@ -115,7 +116,8 @@ export function migrate(raw: unknown, levels: number): Progress | null {
   if (isObj(raw.settings)) {
     p.settings = {
       voice: typeof raw.settings.voice === 'boolean' ? raw.settings.voice : true,
-      autoRead: typeof raw.settings.autoRead === 'boolean' ? raw.settings.autoRead : true
+      autoRead: typeof raw.settings.autoRead === 'boolean' ? raw.settings.autoRead : true,
+      readOptions: typeof raw.settings.readOptions === 'boolean' ? raw.settings.readOptions : true
     };
   }
   return p;

@@ -40,6 +40,17 @@ export function speakNow(text: string): void {
   if (voiceOn() && app.p.settings.autoRead) Voice.speak(text);
 }
 
+/** Стає в чергу за попередньою фразою — для варіантів відповіді після питання. */
+export function speakAfter(text: string): void {
+  if (import.meta.env.DEV) ((window as unknown as { __spoken?: string[] }).__spoken ??= []).push(text);
+  if (voiceOn() && app.p.settings.autoRead) Voice.speak(text, false);
+}
+
+/** Дитина сама попросила послухати — говоримо навіть без автоозвучки. */
+export function speakTap(text: string): void {
+  if (Voice.available() && app.p.settings.voice) Voice.speak(text);
+}
+
 export function replay(): void {
   if (lastSpoken && Voice.available()) Voice.speak(lastSpoken);
 }
