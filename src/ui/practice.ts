@@ -577,10 +577,10 @@ export function renderScore(): void {
       h('div', { class: 'pp-body' },
         h('div', { class: 'pp-title', text: 'Наступний атракціон: ' + next.name }),
         h('div', { class: 'pp-bar' }, h('span', { style: 'width:' + pct + '%' })),
-        h('div', { class: 'pp-note', text: 'Ще ' + (next.stars - stars) + ' ⭐ — і він з’явиться в парку!' })));
+        h('div', { class: 'pp-note', text: 'Ще ' + (next.stars - stars) + ' ⭐ — і він з’явиться на планеті!' })));
   } else {
     pp.append(h('span', { class: 'pp-ico', text: '🏆' }),
-      h('div', { class: 'pp-body' }, h('div', { class: 'pp-title', text: 'Увесь парк збудовано! Ти — справжній годинникар.' })));
+      h('div', { class: 'pp-body' }, h('div', { class: 'pp-title', text: 'Увесь парк на планеті збудовано! Ти — справжній годинникар.' })));
   }
 }
 
