@@ -164,6 +164,19 @@ button { font: inherit; color: inherit; }
   pointer-events: none;
 }
 #scene { display: block; width: 100%; height: auto; }
+
+/* 3D-сцена «Уроку» займає місце острова тих самих пропорцій */
+.scene3d { display: block; width: 100%; aspect-ratio: 900 / 620; touch-action: none; background: #04121a; cursor: grab; }
+body.has-3d[data-mode="learn"] #scene { display: none; }
+body:not([data-mode="learn"]) .scene3d { display: none; }
+body.has-3d[data-mode="learn"] .scene-card { background: #04121a; }
+.scene3d-btn {
+  position: absolute; left: 14px; top: 14px; z-index: 2;
+  border: 0; border-radius: 999px; padding: 8px 14px;
+  background: rgba(8, 34, 42, .7); color: #f6f1ff; font: inherit; font-size: 14px; font-weight: 800; cursor: pointer;
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.scene3d-btn:focus-visible { outline: 3px solid #ffb43c; outline-offset: 2px; }
 .night-stars { transition: opacity .8s; }
 
 .fx-layer { position: fixed; inset: 0; pointer-events: none; z-index: 60; }
@@ -757,6 +770,7 @@ button { font: inherit; color: inherit; }
   .stage { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .panel { max-height: none; overflow: visible; }
   #scene { max-height: 58vh; }
+  .scene3d { aspect-ratio: auto; height: min(58vh, 520px); }
   body[data-mode="practice"] #scene { max-height: 44vh; }
 }
 

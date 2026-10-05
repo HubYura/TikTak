@@ -16,7 +16,8 @@ import { Voice } from './lib/voice';
 import { animateScene, buildScene, setFaceStyle, setStopwatch } from './scene/scene';
 import { replay, say } from './ui/buddy';
 import { camera, cameraTick, initCamera, type Box } from './ui/camera';
-import { enterLearn, initLearn, learnFrame, refreshStageVideo, setPlaying } from './ui/learn';
+import { enterLearn, initLearn, learnFrame, refreshStageVideo, setPlaying, syncTower } from './ui/learn';
+import { show3D } from './ui/scene3d';
 import { INTRO } from './core/videos';
 import { Videos } from './lib/video';
 import { initVideo, videoButton } from './ui/video';
@@ -118,7 +119,9 @@ function setMode(m: Mode): void {
     setFaceStyle(app.S, 'teach');
     setStopwatch(app.S, false);
     enterLearn();
+    show3D(true, syncTower);
   } else {
+    show3D(false);
     setPlaying(false);
     // У грі циферблат повний: без секундної стрілки, секторів чвертей і приглушення
     const all = new Set(Object.keys(app.S.parts));
