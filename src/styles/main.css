@@ -387,26 +387,28 @@ body.show-3d #scene { display: none; }
 
 /* ---------- Урок ---------- */
 
+/* Усі 11 етапів в один ряд без прокрутки: кружечки стискаються під ширину панелі */
 .rail {
   position: relative;
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 4px 4px 12px 2px;
+  display: grid;
+  grid-template-columns: repeat(11, minmax(0, 1fr));
+  gap: clamp(3px, 1vw, 8px);
+  padding: 6px 4px 12px 2px;
   margin-bottom: 4px;
-  scrollbar-width: none;
 }
-.rail::-webkit-scrollbar { display: none; }
 .rail-dot {
-  flex: 0 0 auto;
-  width: 38px;
-  height: 38px;
+  width: 100%;
+  max-width: 40px;
+  aspect-ratio: 1;
+  height: auto;
+  padding: 0;
+  justify-self: center;
   border-radius: 50%;
   border: var(--bw) solid var(--ink);
   background: var(--white);
   box-shadow: 2px 2px 0 var(--ink);
   color: var(--ink-3);
-  font-size: 14px;
+  font-size: clamp(11px, 1.1vw, 14px);
   font-weight: 900;
   cursor: pointer;
   transition: transform .2s cubic-bezier(.3, 1.5, .5, 1), background .2s, color .2s;
@@ -1018,7 +1020,7 @@ body.bg-3d .ctrl-set:empty { display: none; }
     max-height: 50vh; max-height: 50dvh; overflow-y: auto; overscroll-behavior: contain;
     border-radius: 24px 24px 18px 18px; padding-top: 4px;
   }
-  body.bg-3d[data-mode="practice"] .panel { max-height: 56dvh; }
+  body.bg-3d[data-mode="practice"] .panel { max-height: 47dvh; }
   body.bg-3d .sheet-grip {
     display: block; width: 100%; height: 22px; border: 0; background: none; cursor: pointer; padding: 0;
     position: sticky; top: -4px; z-index: 2;
@@ -1033,3 +1035,45 @@ body.bg-3d .ctrl-set:empty { display: none; }
   body.bg-3d[data-mode="practice"]:not(.sheet-min) .panel .buddy { display: none; }
   body.bg-3d[data-mode="practice"] .quiz-card { margin-top: 0; }
 }
+
+/* Десктоп: панель Тіка тягнеться до самого низу, а кнопки керування стоять лише під вежею —
+   так у панелі більше місця й картки не обрізаються */
+@media (min-width: 961px) {
+  body.bg-3d .app {
+    grid-template-columns: minmax(0, 1.4fr) minmax(320px, .9fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    grid-template-areas: "top top" "scene panel" "ctrl panel";
+    column-gap: 20px; row-gap: 14px;
+    padding-bottom: 14px;
+  }
+  body.bg-3d .topbar { grid-area: top; }
+  body.bg-3d .stage { display: contents; }
+  body.bg-3d .scene-card { grid-area: scene; }
+  body.bg-3d .panel { grid-area: panel; max-height: none; min-height: 0; align-self: stretch; }
+  body.bg-3d .controls { grid-area: ctrl; position: static; padding: 0; }
+}
+/* Невисокий екран ноутбука: компактніша панель уроку, щоб усі три картки вміщалися */
+@media (min-width: 961px) and (max-height: 820px) {
+  body.bg-3d .panel { padding: 12px 16px 14px; }
+  body.bg-3d .buddy { margin-bottom: 8px; }
+  body.bg-3d .buddy-face { width: 48px; height: 60px; }
+  body.bg-3d .buddy-say { font-size: 14.5px; padding: 8px 12px; }
+  body.bg-3d .rail { padding-bottom: 8px; }
+  body.bg-3d .panel-head h2 { font-size: 24px; margin: 4px 0 0; }
+  body.bg-3d .desc { font-size: 14.5px; line-height: 1.45; margin: 6px 0 10px; }
+  body.bg-3d .card { padding: 8px 13px 9px; margin-bottom: 10px; }
+  body.bg-3d .card p { font-size: 14px; line-height: 1.42; }
+}
+/* Якщо в панелі є ще вміст нижче — легка тінь унизу підказує, що її можна гортати */
+body.bg-3d .panel { --fade: linear-gradient(#000 calc(100% - 26px), transparent); }
+body.bg-3d .panel.can-scroll { -webkit-mask-image: var(--fade); mask-image: var(--fade); }
+/* Урок: картку, яку Тік зараз читає, видно; дотик до картки — Тік читає її */
+#panelLearn .card { cursor: pointer; transition: transform .2s cubic-bezier(.3, 1.5, .5, 1), box-shadow .2s; }
+#panelLearn .card h3::after { content: ' 🔊'; opacity: .45; font-size: 12px; }
+#panelLearn .card.reading { transform: translate(-2px, -2px); box-shadow: 7px 7px 0 var(--ink); }
+#panelLearn .card.reading h3::after { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { #panelLearn .card.reading { transform: none; } }
+
+/* «Тепер ти!» у картці «Спробуй сам» і на вежі */
+.try-btn { margin-top: 10px; }
+body.learn-try .scene3d { cursor: pointer; }

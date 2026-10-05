@@ -237,8 +237,9 @@ export function createTower3D(canvas, opts = {}) {
 
   /* ---------- Вежа: будується по 11 етапах ---------- */
   const parts = [];
-  const ghostMat = new THREE.MeshBasicMaterial({ color: 0x6FE8FF, transparent: true, opacity: 0.1, depthWrite: false, toneMapped: false });
-  const ghostLine = new THREE.LineBasicMaterial({ color: 0x8FF0FF, transparent: true, opacity: 0.5, toneMapped: false });
+  // Ще не збудоване — тонке креслення: майже прозора заливка й тьмяні лінії, без світіння (toneMapped — щоб bloom їх не підхоплював)
+  const ghostMat = new THREE.MeshBasicMaterial({ color: 0x6FE8FF, transparent: true, opacity: 0.03, depthWrite: false });
+  const ghostLine = new THREE.LineBasicMaterial({ color: 0x9FEFFF, transparent: true, opacity: 0.18, depthWrite: false });
   const tower = new THREE.Group(); tower.position.y = HOME_R + 0.05; home.add(tower);
   function part(stage, order = 0) { const g = new THREE.Group(); g.userData = { stage, order, built: null, t0: 0 }; tower.add(g); parts.push(g); return g; }
 
@@ -885,7 +886,8 @@ export function createTower3D(canvas, opts = {}) {
     return dir.multiplyScalar(2.4).addScaledVector(side, 2.3).setY(v.target.y + 0.2);
   }
   function tikSpot(k) {
-    if (k === 0 || k === 5) return FRONT.clone().multiplyScalar(2.2).addScaledVector(SIDE, k ? -1.1 : -1.5).setY(HOME_R + 0.06);
+    // Біля підніжжя Тік ширяє над площею між ліхтарями й жителями, а не стоїть серед них на сходах
+    if (k === 0 || k === 5) return FRONT.clone().multiplyScalar(3.7).addScaledVector(SIDE, k ? 0.1 : -0.05).setY(HOME_R + (k ? 1.1 : 1.3));
     const v = stageView(CH_FIRST[k]), dir = v.pos.clone().setY(0).normalize(), side = new THREE.Vector3().crossVectors(UP, dir);
     return dir.multiplyScalar(1.6).addScaledVector(side, -2.2).setY(v.target.y - 0.7);
   }
@@ -918,16 +920,31 @@ export function createTower3D(canvas, opts = {}) {
   /* ---------- Керування з гри ---------- */
   let handMins = 540, secFrac = 0, dayMins = null;
   let running = false, raf = 0, last = 0, firstStage = true;
-  let locked = false;     // у грі камеру не крутимо: дитина тягне стрілки
+  let locked = false;
+  let interactive = false;   // «Тепер ти!» в уроці: дитина тягне стрілки, камера не крутиться     // у грі камеру не крутимо: дитина тягне стрілки
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 
+  /* Якість: 2 — повна, 1 — простіша (телефони), 0 — мінімальна для слабких пристроїв.
+     Сцена на весь екран, тож якщо кадрів замало, сама знижує якість на ступінь (і назад не піднімає — без миготіння). */
+  let tier = high ? 2 : 1;
   function applyQuality() {
-    renderer.setPixelRatio(Math.min(devicePixelRatio, high ? 1.75 : 1));
-    bloom.enabled = high;
-    key.castShadow = high;
-    skyU.uOct.value = high ? 5 : 3;
-    grass.count = high ? grass.userData.max : Math.floor(grass.userData.max * 0.4);
+    // Телефони мають щільні екрани (2–3×): менше 2× — уже помітні «драбинки», тож економимо на ефектах, а не на чіткості
+    renderer.setPixelRatio(Math.min(devicePixelRatio, [1.25, 2, 2][tier]));
+    bloom.enabled = tier === 2;
+    key.castShadow = tier === 2;
+    skyU.uOct.value = tier === 2 ? 5 : 3;
+    grass.count = Math.floor(grass.userData.max * [0.15, 0.4, 1][tier]);
     resize();
+  }
+  let perfT = 0, perfN = 0, perfSkip = 3;   // перші секунди не рахуємо: компіляція шейдерів, підвантаження
+  function watchPerf(dt) {
+    if (tier === 0 || !dt) return;
+    if (perfSkip > 0) { perfSkip -= dt; return; }
+    perfT += dt; perfN++;
+    if (perfT < 2.5) return;
+    const fps = perfN / perfT;
+    perfT = 0; perfN = 0;
+    if (fps < 38) { tier--; high = tier === 2; applyQuality(); perfSkip = 1.5; }
   }
 
   /* Полотно може лежати під панелями на весь екран. view — вільна від них частина (у пікселях полотна):
@@ -991,12 +1008,13 @@ export function createTower3D(canvas, opts = {}) {
     {
       const pk = reduced ? 0.6 : 0.5 + 0.5 * Math.sin(now * 0.006);
       for (const k of ['h', 'm', 's']) hands[k].forEach(x => {
-        const on = focusKey === k;
+        const on = focusKey === k && x.material !== ghostMat;
         x.scale.setScalar(on ? 1 + 0.14 * pk : 1);
-        const e = x.material.emissive;
+        const e = x.material === ghostMat ? null : x.material.emissive;
         if (e) { if (on) e.copy(x.material.color).multiplyScalar(0.55 * pk); else e.setRGB(0, 0, 0); }
       });
-      for (const k of ['nums', 'ticks']) focusable[k].forEach(x => { x.material.opacity = focusKey === k ? 0.45 + 0.55 * pk : 1; });
+      // Лише збудовані: непобудовані ділять матеріал креслення (ghostMat), його прозорість не чіпаємо
+      for (const k of ['nums', 'ticks']) focusable[k].forEach(x => { if (x.material !== ghostMat) x.material.opacity = focusKey === k ? 0.45 + 0.55 * pk : 1; });
     }
 
     for (const g of parts) {
@@ -1037,10 +1055,11 @@ export function createTower3D(canvas, opts = {}) {
       camera.position.copy(fly.curve.getPoint(k));
       controls.target.copy(fly.ft).lerp(fly.tt, k);
       camera.lookAt(controls.target);
-      if (p >= 1) { const th = fly.then; fly = null; controls.enabled = !locked; if (th) th(); }
+      if (p >= 1) { const th = fly.then; fly = null; controls.enabled = !locked && !interactive; if (th) th(); }
     } else if (!locked) controls.update();
 
     composer.render();
+    watchPerf(dt);
     raf = requestAnimationFrame(frame);
   }
 
@@ -1108,6 +1127,8 @@ export function createTower3D(canvas, opts = {}) {
     overview() { goOverview(); },
     /** Що пульсує на циферблаті: 'h' | 'm' | 's' | 'nums' | 'ticks' або null. */
     setFocus(k) { focusKey = k; },
+    /** Урок: дитина щось робить на вежі — камеру пальцем не крутимо. */
+    setInteractive(on) { interactive = on; if (!fly) controls.enabled = !locked && !on; if (on) controls.autoRotate = false; },
     /** Вільна від панелей частина полотна { x, y, w, h } у CSS-пікселях; null — усе полотно. */
     setFrame(r) {
       const same = r && view && ['x', 'y', 'w', 'h'].every(k => Math.abs(r[k] - view[k]) < 1);
@@ -1120,9 +1141,9 @@ export function createTower3D(canvas, opts = {}) {
       if (locked) this.setPractice(false);
       if (mode !== 'over') goOverview();
     },
-    start() { if (running) return; running = true; last = 0; resize(); raf = requestAnimationFrame(frame); },
+    start() { if (running) return; running = true; last = 0; perfSkip = 1.5; perfT = 0; perfN = 0; resize(); raf = requestAnimationFrame(frame); },
     stop() { running = false; cancelAnimationFrame(raf); },
-    setQuality(h) { high = h; applyQuality(); },
+    setQuality(h) { high = h; tier = h ? 2 : 1; applyQuality(); },
     get high() { return high; },
     dispose() { this.stop(); ro.disconnect(); renderer.dispose(); }
   };

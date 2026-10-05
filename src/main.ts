@@ -94,6 +94,14 @@ $('btnVoice').addEventListener('click', () => {
   say(app.p.settings.voice ? VOICE_ON_SAY : 'Добре, я мовчатиму.', 'happy', 1400);
 });
 $('btnReplay').addEventListener('click', replay);
+// Тінь унизу панелі — лише поки нижче є що гортати
+{
+  const panel = $('panel');
+  const fade = () => panel.classList.toggle('can-scroll', panel.scrollTop + panel.clientHeight < panel.scrollHeight - 4);
+  panel.addEventListener('scroll', fade, { passive: true });
+  new ResizeObserver(fade).observe(panel);
+  new MutationObserver(fade).observe(panel, { childList: true, subtree: true, characterData: true });
+}
 // Шторка панелі на телефоні: згорнути, щоб роздивитися вежу
 $('sheetGrip').addEventListener('click', () => {
   const min = document.body.classList.toggle('sheet-min');
@@ -258,7 +266,8 @@ app.p.park = Array.from(new Set([...app.p.park, ...PARK.filter(a => app.S.park[a
 renderScore();
 awardBadges();
 setMode('learn');
-setPlaying(app.p.welcomed);
+// Урок не стартує сам: дитина могла прийти пограти. Тік лише вітається, поки не натиснуть ▶
+setPlaying(false);
 requestAnimationFrame(frame);
 
 if (!app.p.welcomed) $('welcome').hidden = false;

@@ -8,6 +8,8 @@ export interface Tower3D {
   /** Час доби для етапу «Ранок, день, вечір, ніч», хвилини від півночі; null — полудень. */
   setDay(mins: number | null): void;
   overview(): void;
+  /** Урок: «Тепер ти!» — камеру пальцем не крутимо. */
+  setInteractive(on: boolean): void;
   /** «Підсвітка» уроку: що пульсує на циферблаті. */
   setFocus(k: 'h' | 'm' | 's' | 'nums' | 'ticks' | null): void;
   /** Вільна від панелей частина полотна (CSS-пікселі): вежа центрується в ній. null — усе полотно. */
