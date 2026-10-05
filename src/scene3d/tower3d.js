@@ -237,8 +237,9 @@ export function createTower3D(canvas, opts = {}) {
 
   /* ---------- Вежа: будується по 11 етапах ---------- */
   const parts = [];
-  const ghostMat = new THREE.MeshBasicMaterial({ color: 0x6FE8FF, transparent: true, opacity: 0.1, depthWrite: false, toneMapped: false });
-  const ghostLine = new THREE.LineBasicMaterial({ color: 0x8FF0FF, transparent: true, opacity: 0.5, toneMapped: false });
+  // Ще не збудоване — тонке креслення: майже прозора заливка й тьмяні лінії, без світіння (toneMapped — щоб bloom їх не підхоплював)
+  const ghostMat = new THREE.MeshBasicMaterial({ color: 0x6FE8FF, transparent: true, opacity: 0.03, depthWrite: false });
+  const ghostLine = new THREE.LineBasicMaterial({ color: 0x9FEFFF, transparent: true, opacity: 0.18, depthWrite: false });
   const tower = new THREE.Group(); tower.position.y = HOME_R + 0.05; home.add(tower);
   function part(stage, order = 0) { const g = new THREE.Group(); g.userData = { stage, order, built: null, t0: 0 }; tower.add(g); parts.push(g); return g; }
 
@@ -885,7 +886,8 @@ export function createTower3D(canvas, opts = {}) {
     return dir.multiplyScalar(2.4).addScaledVector(side, 2.3).setY(v.target.y + 0.2);
   }
   function tikSpot(k) {
-    if (k === 0 || k === 5) return FRONT.clone().multiplyScalar(2.2).addScaledVector(SIDE, k ? -1.1 : -1.5).setY(HOME_R + 0.06);
+    // Біля підніжжя Тік ширяє над площею між ліхтарями й жителями, а не стоїть серед них на сходах
+    if (k === 0 || k === 5) return FRONT.clone().multiplyScalar(3.7).addScaledVector(SIDE, k ? 0.1 : -0.05).setY(HOME_R + (k ? 1.1 : 1.3));
     const v = stageView(CH_FIRST[k]), dir = v.pos.clone().setY(0).normalize(), side = new THREE.Vector3().crossVectors(UP, dir);
     return dir.multiplyScalar(1.6).addScaledVector(side, -2.2).setY(v.target.y - 0.7);
   }
@@ -991,12 +993,13 @@ export function createTower3D(canvas, opts = {}) {
     {
       const pk = reduced ? 0.6 : 0.5 + 0.5 * Math.sin(now * 0.006);
       for (const k of ['h', 'm', 's']) hands[k].forEach(x => {
-        const on = focusKey === k;
+        const on = focusKey === k && x.material !== ghostMat;
         x.scale.setScalar(on ? 1 + 0.14 * pk : 1);
-        const e = x.material.emissive;
+        const e = x.material === ghostMat ? null : x.material.emissive;
         if (e) { if (on) e.copy(x.material.color).multiplyScalar(0.55 * pk); else e.setRGB(0, 0, 0); }
       });
-      for (const k of ['nums', 'ticks']) focusable[k].forEach(x => { x.material.opacity = focusKey === k ? 0.45 + 0.55 * pk : 1; });
+      // Лише збудовані: непобудовані ділять матеріал креслення (ghostMat), його прозорість не чіпаємо
+      for (const k of ['nums', 'ticks']) focusable[k].forEach(x => { if (x.material !== ghostMat) x.material.opacity = focusKey === k ? 0.45 + 0.55 * pk : 1; });
     }
 
     for (const g of parts) {

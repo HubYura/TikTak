@@ -118,9 +118,6 @@ export function goTo(i: number, quiet = false): void {
     d.classList.toggle('done', app.p.seen.includes(k) && k !== cur);
     d.setAttribute('aria-current', k === cur ? 'step' : 'false');
   });
-  // Не scrollIntoView: той прокрутив би всю сторінку на телефоні
-  const dot = rail.children[cur] as HTMLElement | undefined;
-  if (dot) rail.scrollTo({ left: dot.offsetLeft - rail.clientWidth / 2 + dot.offsetWidth / 2, behavior: 'smooth' });
 
   $<HTMLButtonElement>('btnPrev').disabled = cur === 0;
   $<HTMLButtonElement>('btnNext').disabled = cur === STAGES.length - 1;

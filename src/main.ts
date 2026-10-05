@@ -94,6 +94,14 @@ $('btnVoice').addEventListener('click', () => {
   say(app.p.settings.voice ? VOICE_ON_SAY : 'Добре, я мовчатиму.', 'happy', 1400);
 });
 $('btnReplay').addEventListener('click', replay);
+// Тінь унизу панелі — лише поки нижче є що гортати
+{
+  const panel = $('panel');
+  const fade = () => panel.classList.toggle('can-scroll', panel.scrollTop + panel.clientHeight < panel.scrollHeight - 4);
+  panel.addEventListener('scroll', fade, { passive: true });
+  new ResizeObserver(fade).observe(panel);
+  new MutationObserver(fade).observe(panel, { childList: true, subtree: true, characterData: true });
+}
 // Шторка панелі на телефоні: згорнути, щоб роздивитися вежу
 $('sheetGrip').addEventListener('click', () => {
   const min = document.body.classList.toggle('sheet-min');
