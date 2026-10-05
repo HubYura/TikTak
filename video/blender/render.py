@@ -53,8 +53,8 @@ def srgb(hexstr, a=1.0):
 COL = {
     'gold': '#ffc93c', 'goldD': '#d99b0b', 'bezel': '#26364a', 'dial': '#ffffff', 'band': '#e3f0ff',
     'ink': '#1d2b3a', 'tick': '#a9b8c8', 'hour': '#ff5a5f', 'hourD': '#c73c43', 'min': '#2d8cff',
-    'minD': '#1560c2', 'sec': '#ff9f1a', 'glow': '#ffd84d', 'tikRim': '#d98a1c', 'tikFace': '#fffaf0',
-    'eye': '#26364a', 'blush': '#ff9a9a', 'grass': '#86d05c', 'grassD': '#56963a', 'cloud': '#ffffff',
+    'minD': '#1560c2', 'sec': '#ff9f1a', 'glow': '#ffd84d', 'tikRim': '#15111f', 'tikFace': '#fffaf0',
+    'eye': '#26364a', 'blush': '#ff9a9a', 'grass': '#ef7d45', 'grassD': '#b9a4ff', 'cloud': '#ff8fd3', 'space': '#2a1f6e',
     'label': '#1f2d3d', 'pill': '#ffffff', 'orange': '#ff8c42', 'green': '#22b865', 'blue': '#2d8cff',
     'red': '#ff5a5f', 'gear': '#aab5c3', 'gearD': '#7d8a99'
 }
@@ -288,18 +288,26 @@ def build(clip: Clip, args):
     em.name = 'SkyColor'
     out = nt.nodes.new('ShaderNodeOutputMaterial')
     nt.links.new(em.outputs[0], out.inputs['Surface'])
-    em.inputs['Color'].default_value = srgb('#8fd8f5')
+    em.inputs['Color'].default_value = srgb(COL['space'])
     rect('Sky', 60, 40, bg_mat, coll, (0, 0, -5))
+    # Космос: зорі — лише там, де не показуємо денне небо
+    if not day:
+        import random
+        rnd = random.Random(7)
+        star = mat('Star', '#ffffff')
+        for i in range(46):
+            x, y = rnd.uniform(-14, 14), rnd.uniform(-2.5, 8)
+            disc(f'Star{i}', rnd.choice([0.03, 0.045, 0.07]), star, coll, (x, y, -4.97), seg=8)
     disc('HillBack', 1, mat('GrassD', COL['grassD']), coll, (6, -6.1, -4.9), sx=8, sy=2.9)
     disc('Hill', 1, mat('Grass', COL['grass']), coll, (-1.5, -6.8, -4.8), sx=11, sy=3.3)
 
     def tree(name, x, y, s, bush=False):
         t = empty(name, coll, (x, y, -4.6))
         if not bush:
-            rect(name + '.trunk', 0.28 * s, 1.1 * s, mat('Trunk', '#9a6136'), coll, (0, 0, 0), anchor_bottom=True, parent=t)
+            rect(name + '.trunk', 0.28 * s, 1.1 * s, mat('Trunk', '#f3e6d2'), coll, (0, 0, 0), anchor_bottom=True, parent=t)
         base = 0.0 if bush else 1.0 * s
-        for j, (dx, dy, r, col) in enumerate([(-0.45, 0.25, 0.55, '#5fb043'), (0.45, 0.25, 0.55, '#5fb043'),
-                                              (0, 0.65, 0.7, '#78c95b'), (-0.15, 0.95, 0.35, '#97df76')]):
+        for j, (dx, dy, r, col) in enumerate([(-0.45, 0.25, 0.55, '#1a8a90'), (0.45, 0.25, 0.55, '#1a8a90'),
+                                              (0, 0.65, 0.7, '#2ec4b6'), (-0.15, 0.95, 0.35, '#9ff0e2')]):
             disc(f'{name}.leaf{j}', r * s, mat('Leaf' + col, col), coll, (dx * s, base + dy * s, 0.01 * j), parent=t)
         return t
 
@@ -532,7 +540,7 @@ def build(clip: Clip, args):
             a.keyframe_insert('rotation_euler', index=2, frame=frame)
 
     def key_sky(frame, mins):
-        col = srgb(sky_at(int(mins // 60) % 24)) if day else srgb('#8fd8f5')
+        col = srgb(sky_at(int(mins // 60) % 24)) if day else srgb(COL['space'])
         node = bg_mat.node_tree.nodes['SkyColor']
         node.inputs['Color'].default_value = col
         set_interp('LINEAR')

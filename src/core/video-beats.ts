@@ -39,7 +39,8 @@ const FULL: Part[] = ['numbers', 'fives', 'ticks', 'hour', 'minute'];
 
 export const MOTION: Record<string, ClipMotion> = {
   'intro': { start: '12:00', beats: [
-    { mood: 'happy' }, { glow: ['hour', 'minute'] }, { turn: 60 }, {}, { mood: 'happy', turn: 15 }
+    { mood: 'happy' }, { glow: ['hour', 'minute'] }, { label: 'планета без часу' }, { turn: 60 }, {},
+    { mood: 'happy', turn: 15 }
   ] },
   'parents': { start: '7:00', beats: [
     {}, { clock: '7:30', label: 'пів на восьму' }, { glow: ['halves', 'quarters'] },
@@ -47,6 +48,7 @@ export const MOTION: Record<string, ClipMotion> = {
   ] },
 
   'stage-1': { start: '12:00', parts: ['minute'], beats: [
+    {}, { label: 'годинник — це коло' },
     { glow: ['circle'], turn: 60 }, { label: 'за годинниковою стрілкою', turn: 60 },
     { mood: 'happy', glow: ['circle'], turn: 60 }
   ] },
@@ -81,7 +83,7 @@ export const MOTION: Record<string, ClipMotion> = {
     { show: ['second'], glow: ['second'] }, { turn: 1, label: '60 секунд = 1 хвилина' }, { turn: 1, mood: 'happy' }
   ] },
   'stage-11': { start: '7:00', day: true, beats: [
-    { turn: 1440, glow: ['hour'] }, { turn: 720, label: 'ранок і вечір' }, { label: '19:00', mood: 'happy' }
+    { turn: 720 }, { turn: 1440, glow: ['hour'] }, { turn: 720, label: 'ранок і вечір' }, { label: '19:00', mood: 'happy' }
   ] },
 
   'trap-hourNext': { start: '3:45', beats: [
