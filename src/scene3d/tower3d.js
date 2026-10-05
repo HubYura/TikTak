@@ -166,6 +166,97 @@ export function createTower3D(canvas, opts = {}) {
   const moon = skyBody(1.5, moonTex, new THREE.Vector3(0, 0, 0));
   animated.push(t => { const a = t * (Math.PI * 2 / 120) + 2.2; moon.position.set(Math.cos(a) * 23, 2 + Math.sin(a) * 3, Math.sin(a) * 23); moon.rotation.y = -a; });
 
+  /* ---------- Далекий космос: спіральна галактика й чорна діра (лише тло — далеко за вежею) ---------- */
+  const deep = (f, sd, up, dist) => FRONT.clone().multiplyScalar(f).addScaledVector(SIDE, sd).add(new THREE.Vector3(0, up, 0)).normalize().multiplyScalar(dist);
+  {
+    // Галактика: тисячі зірок у двох спіральних рукавах, ядро тепле, рукави блакитні й рожеві
+    const N = high ? 9000 : 4500, R = 150;
+    const pos = new Float32Array(N * 3), col = new Float32Array(N * 3), size = new Float32Array(N);
+    const cCore = new THREE.Color(0xFFE9C2), cArm = new THREE.Color(0x8FD8FF), cPink = new THREE.Color(0xFF8FD3), c = new THREE.Color();
+    for (let i = 0; i < N; i++) {
+      const core = i < N * 0.18;
+      const r = core ? Math.pow(rng(), 2) * R * 0.22 : (0.08 + Math.pow(rng(), 0.7) * 0.92) * R;
+      const arm = i % 2, spread = (rng() - 0.5) * (0.35 + r / R * 0.5);
+      const a = core ? rng() * Math.PI * 2 : arm * Math.PI + r / R * 4.2 + spread;
+      pos[i * 3] = Math.cos(a) * r; pos[i * 3 + 1] = (rng() - 0.5) * (core ? 10 : 3) * (1 - r / R * 0.6); pos[i * 3 + 2] = Math.sin(a) * r;
+      c.copy(core ? cCore : rng() < 0.22 ? cPink : cArm).lerp(cCore, Math.max(0, 1 - r / (R * 0.35)) * 0.8);
+      col.set([c.r, c.g, c.b], i * 3);
+      size[i] = core ? 2.2 + rng() * 2.5 : 1.2 + rng() * 2.2;
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+    geo.setAttribute('size', new THREE.BufferAttribute(size, 1));
+    const gal = new THREE.Points(geo, new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, vertexColors: true,
+      vertexShader: 'attribute float size; varying vec3 vC; void main(){ vC = color; vec4 mv = modelViewMatrix*vec4(position,1.0); gl_PointSize = clamp(size * 520.0 / -mv.z, 1.0, 6.0); gl_Position = projectionMatrix*mv; }',
+      fragmentShader: 'varying vec3 vC; void main(){ float d = length(gl_PointCoord - 0.5); gl_FragColor = vec4(vC * smoothstep(0.5, 0.0, d) * 0.9, 1.0); }'
+    }));
+    const glowTex = canvasTex(256, 256, (g, w) => {
+      const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2);
+      gr.addColorStop(0, 'rgba(255,240,210,.95)'); gr.addColorStop(0.25, 'rgba(255,200,170,.35)'); gr.addColorStop(1, 'rgba(140,120,255,0)');
+      g.fillStyle = gr; g.fillRect(0, 0, w, w);
+    });
+    const coreGlow = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    coreGlow.scale.set(120, 120, 1);
+    // М'яке світіння рукавів під зірками — щоб спіраль читалася здалеку, а не як пил
+    const armTex = canvasTex(512, 512, (g, w) => {
+      g.translate(w / 2, w / 2);
+      for (let i = 0; i < 2600; i++) {
+        const arm = i % 2, t = rng(), r = (0.06 + t * 0.9) * w / 2, a = arm * Math.PI + t * 4.2 + (rng() - 0.5) * 0.5;
+        const x = Math.cos(a) * r, y = Math.sin(a) * r, rad = 6 + (1 - t) * 22;
+        const gr = g.createRadialGradient(x, y, 0, x, y, rad);
+        const hue = rng() < 0.25 ? '255,150,210' : t < 0.25 ? '255,230,200' : '150,210,255';
+        gr.addColorStop(0, `rgba(${hue},${0.10 * (1 - t * 0.6)})`); gr.addColorStop(1, `rgba(${hue},0)`);
+        g.fillStyle = gr; g.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+      }
+    });
+    const arms = new THREE.Mesh(new THREE.PlaneGeometry(R * 2.1, R * 2.1), new THREE.MeshBasicMaterial({ map: armTex, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide }));
+    arms.rotation.x = -Math.PI / 2;
+    gal.add(arms);
+    const galaxy = new THREE.Group(); galaxy.add(gal, coreGlow);
+    galaxy.position.copy(deep(-1, 0.16, 0.2, 760));
+    galaxy.lookAt(0, 0, 0); galaxy.rotateX(-1.05);                  // нахилена: видно спіраль, а не ребро
+    scene.add(galaxy);
+    animated.push((t, dt) => { gal.rotation.y += dt * 0.025; });
+  }
+  {
+    // Чорна діра: чорна куля, гарячий диск, що закручується, і світне кільце довкола (як світло, яке вона згинає)
+    const RH = 24;
+    const hole = new THREE.Group();
+    hole.position.copy(deep(-1, 0.3, -0.08, 700));
+    const horizon = add(hole, new THREE.SphereGeometry(RH, 40, 24), new THREE.MeshBasicMaterial({ color: 0x000000 }), 0, 0, 0);
+    horizon.renderOrder = 1;
+    const diskU = { uTime: { value: 0 } };
+    const disk = new THREE.Mesh(new THREE.RingGeometry(RH * 1.45, RH * 4.2, 96, 1), new THREE.ShaderMaterial({
+      uniforms: diskU, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: THREE.AdditiveBlending,
+      vertexShader: 'varying vec2 vP; void main(){ vP = position.xy; gl_Position = projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
+      fragmentShader: `uniform float uTime; varying vec2 vP;
+        void main(){
+          float r = length(vP) / ${(RH).toFixed(1)}; float a = atan(vP.y, vP.x);
+          float t = clamp((r - 1.45) / 2.75, 0.0, 1.0);
+          vec3 hot = mix(vec3(1.0, 0.97, 0.88), vec3(1.0, 0.55, 0.18), smoothstep(0.0, 0.45, t));
+          hot = mix(hot, vec3(0.75, 0.16, 0.32), smoothstep(0.45, 1.0, t));
+          float streak = 0.65 + 0.35 * sin(a * 7.0 - uTime * 1.6 + r * 5.0) * sin(a * 3.0 + uTime * 0.7 - r * 2.0);
+          float alpha = smoothstep(0.0, 0.06, t) * (1.0 - smoothstep(0.55, 1.0, t));
+          gl_FragColor = vec4(hot * streak * alpha * 1.25, 1.0);
+        }`
+    }));
+    hole.add(disk);
+    hole.lookAt(0, 0, 0);
+    disk.rotation.x = Math.PI / 2 - 0.32;                            // майже з ребра, як на знаменитих фото
+    const ringTex2 = canvasTex(256, 256, (g, w) => {
+      const gr = g.createRadialGradient(w / 2, w / 2, w * 0.2, w / 2, w / 2, w / 2);
+      gr.addColorStop(0.3, 'rgba(255,200,140,0)'); gr.addColorStop(0.4, 'rgba(255,235,200,.95)'); gr.addColorStop(0.55, 'rgba(255,170,90,.4)'); gr.addColorStop(1, 'rgba(255,120,80,0)');   // яскраве кільце трохи ширше за кулю
+      g.fillStyle = gr; g.fillRect(0, 0, w, w);
+    });
+    const halo = new THREE.Sprite(new THREE.SpriteMaterial({ map: ringTex2, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    halo.scale.set(RH * 3.6, RH * 3.6, 1); halo.renderOrder = 0;
+    hole.add(halo);
+    scene.add(hole);
+    animated.push(t => { diskU.uTime.value = t; });
+  }
+
   /* ---------- Атмосфера (світіння по краю) ---------- */
   function atmosphere(r, color, power = 3, k = 1.3) {
     return new THREE.Mesh(new THREE.SphereGeometry(r * 1.14, 48, 32), new THREE.ShaderMaterial({
