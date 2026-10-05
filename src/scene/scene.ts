@@ -15,20 +15,20 @@ export const polar = (a: number, r: number): Pt => [
 
 /* Палітра сцени — соковита, зі світлом зліва згори */
 export const C = {
-  grassTop: '#86d05c', grassAlt: '#76c34e', grassSide: '#56963a', grassDeep: '#457d2d',
-  pathTop: '#f5deae', pathAlt: '#ead095',
-  soil: '#9a6a3e', soilDeep: '#654226',
-  wood: '#c9895a', woodTop: '#e3a877', woodSide: '#9a6136', woodDeep: '#744826',
-  stone: '#dfe5ee', stoneTop: '#f3f6fa', stoneSide: '#aab5c3',
-  roof: '#f0525a', roofLight: '#ff7a7f', roofSide: '#bd3740',
-  gold: '#ffc93c', goldDark: '#d19a0b',
-  dial: '#ffffff', minBand: '#eaf5ff', bezel: '#26364a',
-  ink: '#1d2b3a', tickMin: '#a9b8c8',
+  grassTop: '#a6ef7a', grassAlt: '#94e066', grassSide: '#6fbf45', grassDeep: '#4f9a2e',
+  pathTop: '#fff1c9', pathAlt: '#ffe39a',
+  soil: '#8b6cff', soilDeep: '#6a4de0',
+  wood: '#b9a4ff', woodTop: '#d4c6ff', woodSide: '#8b6cff', woodDeep: '#6a4de0',
+  stone: '#fff7e6', stoneTop: '#ffffff', stoneSide: '#d9cfe8',
+  roof: '#ff7a3d', roofLight: '#ffa06e', roofSide: '#d9582a',
+  gold: '#ffd23f', goldDark: '#d9a40b',
+  dial: '#ffffff', minBand: '#eaf5ff', bezel: '#15111f',
+  ink: '#15111f', tickMin: '#a9b8c8',
   hourHand: '#ff5a5f', hourHandD: '#c73c43',
   minHand: '#2d8cff', minHandD: '#1560c2',
   secHand: '#ff9f1a',
-  leafA: '#5fb043', leafB: '#78c95b', leafC: '#97df76',
-  water: '#7fd3ff', waterD: '#3fa9e6'
+  leafA: '#2ec4b6', leafB: '#5fdcc9', leafC: '#9ff0e2',
+  water: '#7ee3f2', waterD: '#3fb8d6'
 };
 
 export interface Part { el: SVGGElement; kids: SVGElement[] | null }
@@ -68,8 +68,8 @@ export function buildScene(svg: SVGSVGElement): SceneRefs {
 
   const defs = el('defs', {}, svg);
   const sky = el('linearGradient', { id: 'skyGrad', x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
-  const skyA = el('stop', { offset: 0, 'stop-color': '#8fd8f5' }, sky);
-  const skyB = el('stop', { offset: 1, 'stop-color': '#e2f6ff' }, sky);
+  const skyA = el('stop', { offset: 0, 'stop-color': '#7ee3f2' }, sky);
+  const skyB = el('stop', { offset: 1, 'stop-color': '#c8f4fa' }, sky);
 
   /* Небо поза «світом»: нічне затемнення не повинно гасити сонце й місяць */
   const gSky = group('gSky', svg);
@@ -512,7 +512,7 @@ export function animateScene(S: SceneRefs, T: number, reduced: boolean): void {
 export function skyFor(h24: number): { a: string; b: string; dark: number } {
   if (h24 < 5) return { a: '#18264a', b: '#34487a', dark: 0.55 };
   if (h24 < 7) return { a: '#f3a26b', b: '#ffdcb3', dark: 0.16 };
-  if (h24 < 18) return { a: '#8fd8f5', b: '#e2f6ff', dark: 0 };
+  if (h24 < 18) return { a: '#7ee3f2', b: '#c8f4fa', dark: 0 };
   if (h24 < 20) return { a: '#ee8559', b: '#ffd29e', dark: 0.18 };
   if (h24 < 22) return { a: '#46598c', b: '#8579a8', dark: 0.4 };
   return { a: '#18264a', b: '#34487a', dark: 0.55 };

@@ -12,8 +12,8 @@ export default defineConfig({
         short_name: 'ЧасоПарк',
         description: 'Гра для дітей: читаємо аналоговий годинник і будуємо парк атракціонів.',
         lang: 'uk',
-        theme_color: '#bfe9ff',
-        background_color: '#eaf7ff',
+        theme_color: '#8b6cff',
+        background_color: '#8b6cff',
         display: 'standalone',
         orientation: 'any',
         icons: [
