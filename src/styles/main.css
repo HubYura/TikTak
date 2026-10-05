@@ -171,11 +171,11 @@ button { font: inherit; color: inherit; }
 }
 #scene { display: block; width: 100%; height: auto; }
 
-/* 3D-сцена «Уроку» займає місце острова тих самих пропорцій */
+/* 3D-сцена займає місце SVG-сцени тих самих пропорцій */
 .scene3d { display: block; width: 100%; aspect-ratio: 900 / 620; touch-action: none; background: #04121a; cursor: grab; }
-body.has-3d[data-mode="learn"] #scene { display: none; }
-body:not([data-mode="learn"]) .scene3d { display: none; }
-body.has-3d[data-mode="learn"] .scene-card { background: #04121a; }
+body.show-3d #scene { display: none; }
+body:not(.show-3d) .scene3d { display: none !important; }
+body.show-3d .scene-card { background: #04121a; }
 .scene3d-btn {
   position: absolute; left: 14px; top: 14px; z-index: 2;
   height: 38px; padding: 0 14px;
@@ -770,6 +770,23 @@ body.has-3d[data-mode="learn"] .scene-card { background: #04121a; }
 .r-trap p { margin: 6px 0 0; font-size: 15px; line-height: 1.5; }
 .r-trap-meta { font-size: 13px !important; color: var(--ink-3); margin-top: 0 !important; }
 .r-tip { background: var(--sun); border: 2px solid var(--ink); border-radius: 10px; padding: 8px 10px; }
+.r-plan { margin-top: 4px; }
+.r-focus { font-size: 16px; line-height: 1.5; margin: 0 0 12px; }
+.r-days { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
+.r-day-card { background: var(--white); border: var(--bw) solid var(--ink); box-shadow: var(--hard-sm); border-radius: 16px; padding: 12px 14px; }
+.r-day-name { display: inline-block; background: var(--cyan); border: 2px solid var(--ink); border-radius: 99px; padding: 2px 10px; font-size: 12.5px; font-weight: 900; }
+.r-day-card h4 { margin: 8px 0 4px; font-size: 16px; font-weight: 900; }
+.r-day-card p { margin: 6px 0 0; font-size: 14.5px; line-height: 1.5; }
+.r-need { color: var(--ink-2); font-size: 13.5px !important; }
+.r-print { margin-top: 12px; background: var(--white); }
+@media print {
+  body.print-plan { background: #fff; }
+  body.print-plan * { visibility: hidden; }
+  body.print-plan .r-plan, body.print-plan .r-plan * { visibility: visible; }
+  body.print-plan .r-plan { position: absolute; left: 0; top: 0; width: 100%; }
+  body.print-plan .r-print { display: none; }
+  body.print-plan .r-day-card { box-shadow: none; break-inside: avoid; }
+}
 .r-empty { background: var(--lime); border: var(--bw) solid var(--ink); border-radius: 14px; padding: 12px 14px; margin: 0; }
 .r-strong { font-size: 15px; line-height: 1.5; }
 .r-rows { display: grid; grid-template-columns: max-content 1fr auto auto; gap: 9px 12px; align-items: center; font-size: 15px; }
@@ -826,6 +843,7 @@ body.has-3d[data-mode="learn"] .scene-card { background: #04121a; }
   #scene { max-height: 58vh; }
   .scene3d { aspect-ratio: auto; height: min(58vh, 520px); }
   body[data-mode="practice"] #scene { max-height: 44vh; }
+  body[data-mode="practice"] .scene3d { height: min(44vh, 400px); }
 }
 
 @media (max-width: 600px) {
@@ -880,7 +898,8 @@ body.has-3d[data-mode="learn"] .scene-card { background: #04121a; }
   .app, .fx-layer, .overlay:not(#report), .report-actions { display: none !important; }
   .overlay#report { position: static; background: none; padding: 0; display: block; }
   .report { background: #fff; border: 0; box-shadow: none; margin: 0; width: 100%; animation: none; }
-  .r-tile, .r-trap { box-shadow: none; }
+  .r-tile, .r-trap, .r-day-card { box-shadow: none; }
+  .r-print { display: none; }
   .r-trap, .r-tile { break-inside: avoid; }
 }
 

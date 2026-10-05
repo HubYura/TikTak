@@ -1,6 +1,7 @@
 /* Батьківський замок і звіт. Усе рахується з даних на пристрої. */
 
 import { isWeak, weakness } from '../core/adaptive';
+import { homePlan } from '../core/homeplan';
 import { ADVENTURES, BADGES, LEVELS, MAX_STARS, STAGES, totalStars } from '../core/content';
 import { blankProgress, dayKey } from '../core/progress';
 import type { Trap } from '../core/questions';
@@ -210,6 +211,25 @@ export function openReport(onReset: () => void): void {
     body.append(h('p', { class: 'r-strong' }, h('b', { text: '💪 Уже впевнено: ' }),
       strong.map(t => TRAP_INFO[t].good).join('; ') + '.'));
   }
+
+  // План на тиждень удома
+  const plan = homePlan(p);
+  const printBtn = h('button', { class: 'btn btn-sm r-print', type: 'button', text: '🖨 Роздрукувати план' });
+  printBtn.addEventListener('click', () => {
+    document.body.classList.add('print-plan');
+    window.print();
+    document.body.classList.remove('print-plan');
+  });
+  body.append(h('section', { class: 'r-plan' },
+    h('h3', { text: 'Що робити вдома цього тижня' }),
+    h('p', { class: 'r-focus', text: plan.focus }),
+    h('ol', { class: 'r-days' }, ...plan.items.map(it => h('li', { class: 'r-day-card' },
+      h('span', { class: 'r-day-name', text: it.day + ' · ' + it.minutes + ' хв' }),
+      h('h4', { text: it.title }),
+      h('p', { text: it.how }),
+      h('p', { class: 'r-need' }, h('b', { text: 'Знадобиться: ' }), it.need)))),
+    h('p', { class: 'r-tip' }, plan.daily),
+    printBtn));
 
   // Рівні
   body.append(h('h3', { text: 'Рівні й пригоди' }));

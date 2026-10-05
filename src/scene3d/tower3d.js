@@ -20,6 +20,7 @@ export function createTower3D(canvas, opts = {}) {
   const mobile = matchMedia('(pointer: coarse)').matches || Math.min(screen.width, screen.height) < 700;
   let high = opts.high ?? !mobile;
   let stage = 1;
+  const railings = [];    // поручні балкона: у грі ховаємо, бо вони заступають низ циферблата
   /* ---------- Рендер ---------- */
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: !mobile, powerPreference: 'high-performance' });
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -334,7 +335,7 @@ export function createTower3D(canvas, opts = {}) {
     const YB = Y2 + H2;
     add(p2b, new THREE.BoxGeometry(3.0, 0.14, 3.0), T.trim, 0, YB + 0.07, 0);
     for (let f = 0; f < 4; f++) {
-      const g = new THREE.Group(); g.rotation.y = f * Math.PI / 2; p2b.add(g);
+      const g = new THREE.Group(); g.rotation.y = f * Math.PI / 2; p2b.add(g); railings.push(g);
       for (let i = 0; i < 9; i++) add(g, new THREE.CylinderGeometry(0.035, 0.045, 0.32, 8), T.cream, -1.35 + i * 0.3375, YB + 0.3, 1.42);
       add(g, new THREE.BoxGeometry(2.96, 0.06, 0.1), T.trim, 0, YB + 0.48, 1.42);
     }
@@ -437,6 +438,7 @@ export function createTower3D(canvas, opts = {}) {
   const HG = extr(handShape('h')), MG = extr(handShape('m'));
   const SG = new THREE.BoxGeometry(0.018, 0.92, 0.012).translate(0, 0.3, 0);
   const hands = { h: [], m: [], s: [] };
+  let frontFace = null;   // циферблат, що дивиться в камеру в режимі гри — на ньому крутять стрілки
   const pD = part(3), pH = part(4), pM = part(5), pHalf = part(6), pQ = part(7), pMin = part(8), pTick = part(9), pS = part(10);
   for (let f = 0; f < 4; f++) {
     const a = f * Math.PI / 2;
@@ -444,16 +446,17 @@ export function createTower3D(canvas, opts = {}) {
     const d = anchor(pD);
     add(d, new THREE.CylinderGeometry(DR + 0.07, DR + 0.07, 0.06, 48), T.dark, 0, 0, 0.01).rotation.x = Math.PI / 2;
     add(d, new THREE.TorusGeometry(DR + 0.04, 0.07, 12, 56), T.gold, 0, 0, 0.06);
-    add(d, new THREE.CircleGeometry(DR, 56), new THREE.MeshStandardMaterial({ map: faceTex, emissiveMap: faceTex, emissive: 0xFFFFFF, emissiveIntensity: 0.18, roughness: 0.55 }), 0, 0, 0.045);
+    const faceMesh = add(d, new THREE.CircleGeometry(DR, 56), new THREE.MeshStandardMaterial({ map: faceTex, emissiveMap: faceTex, emissive: 0xFFFFFF, emissiveIntensity: 0.18, roughness: 0.55 }), 0, 0, 0.045);
+    if (f === 0) frontFace = faceMesh;
     add(d, new THREE.CylinderGeometry(0.07, 0.07, 0.06, 16), T.gold, 0, 0, 0.17).rotation.x = Math.PI / 2;
     const sector = (p, start, len, z) => { const g = anchor(p); add(g, new THREE.CircleGeometry(DR * 0.93, 40, start, len), new THREE.MeshBasicMaterial({ color: 0xFFE27A, transparent: true, opacity: 0.6, toneMapped: false, depthWrite: false }), 0, 0, z); };
     sector(pHalf, -Math.PI / 2, Math.PI, 0.05); sector(pQ, 0, Math.PI / 2, 0.051);
     add(anchor(pMin), new THREE.PlaneGeometry(DR * 2, DR * 2), new THREE.MeshBasicMaterial({ map: minTex, transparent: true, depthWrite: false }), 0, 0, 0.055);
     add(anchor(pTick), new THREE.PlaneGeometry(DR * 2, DR * 2), new THREE.MeshBasicMaterial({ map: tickTex, transparent: true, depthWrite: false }), 0, 0, 0.056);
-    hands.h.push(add(anchor(pH), HG, T.dark, 0, 0, 0.08));
-    hands.m.push(add(anchor(pM), MG, std(0xFF5A3C, { roughness: 0.45 }), 0, 0, 0.11));
-    const sh = add(anchor(pS), SG, glow(0xFF4040), 0, 0, 0.145);
-    add(sh, new THREE.CircleGeometry(0.05, 12), glow(0xFF4040), 0, -0.12, 0.007);
+    hands.h.push(add(anchor(pH), HG, std(0xFF5A5F, { roughness: 0.45 }), 0, 0, 0.08));   // ті самі кольори, що в уроці й відео: годинна червона
+    hands.m.push(add(anchor(pM), MG, std(0x2D8CFF, { roughness: 0.45 }), 0, 0, 0.11));   // хвилинна синя
+    const sh = add(anchor(pS), SG, glow(0xFF9F1A), 0, 0, 0.145);   // секундна помаранчева
+    add(sh, new THREE.CircleGeometry(0.05, 12), glow(0xFF9F1A), 0, -0.12, 0.007);
     hands.s.push(sh);
   }
 
@@ -912,6 +915,8 @@ export function createTower3D(canvas, opts = {}) {
   /* ---------- Керування з гри ---------- */
   let handMins = 540, secFrac = 0, dayMins = null;
   let running = false, raf = 0, last = 0, firstStage = true;
+  let locked = false;     // у грі камеру не крутимо: дитина тягне стрілки
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), hit = new THREE.Vector3();
 
   function applyQuality() {
     renderer.setPixelRatio(Math.min(devicePixelRatio, high ? 1.75 : 1));
@@ -1011,8 +1016,8 @@ export function createTower3D(canvas, opts = {}) {
       camera.position.copy(fly.curve.getPoint(k));
       controls.target.copy(fly.ft).lerp(fly.tt, k);
       camera.lookAt(controls.target);
-      if (p >= 1) { const th = fly.then; fly = null; controls.enabled = true; if (th) th(); }
-    } else controls.update();
+      if (p >= 1) { const th = fly.then; fly = null; controls.enabled = !locked; if (th) th(); }
+    } else if (!locked) controls.update();
 
     composer.render();
     raf = requestAnimationFrame(frame);
@@ -1027,6 +1032,7 @@ export function createTower3D(canvas, opts = {}) {
   return {
     /** Етап уроку 0..10. animate — підлітають нові частини вежі. */
     setStage(i, animate = true) {
+      if (locked) this.setPractice(false);
       const next = Math.max(1, Math.min(11, i + 1));
       const moved = next !== stage;
       stage = next;
@@ -1038,6 +1044,40 @@ export function createTower3D(canvas, opts = {}) {
       // Уперше камера прилітає здалеку — так дитина бачить планету цілком
       flyTo(v.pos, v.target, firstStage ? 4200 : 2200);
       firstStage = false;
+    },
+    /** Режим «Гри»: вежа готова, камера впритул до циферблата, підказки-сектори й секундна стрілка сховані. */
+    setPractice(on) {
+      if (on === locked) return;
+      locked = on;
+      pHalf.visible = pQ.visible = pS.visible = pL.visible = !on;
+      railings.forEach(g => { g.visible = !on; });
+      if (!on) { controls.enabled = true; return; }
+      stage = 11;
+      dayMins = null;
+      applyStage(false);
+      tikTarget = tikSpot(3);
+      controls.autoRotate = false;
+      controls.enabled = false;
+      // Дивимося трохи згори — понад поручнем балкона, що стоїть під циферблатом
+      const target = new THREE.Vector3(0, HOME_R + 0.05 + CYD - 0.08, W3 / 2 + 0.05);
+      const pos = target.clone().add(new THREE.Vector3(0.15, 1.15, 3.1));
+      mode = 'practice';
+      flyTo(pos, target, firstStage ? 3200 : 1600);
+      firstStage = false;
+    },
+    /** Точка дотику на циферблаті: x праворуч, y угору, 1 — край циферблата. null — повз циферблат. */
+    dialPoint(clientX, clientY) {
+      if (!frontFace) return null;
+      const r = canvas.getBoundingClientRect();
+      ndc.set(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1);
+      ray.setFromCamera(ndc, camera);
+      // Перетинаємо площину циферблата, а не сам диск — так стрілку можна тягнути й трохи за краєм
+      const n = new THREE.Vector3(0, 0, 1).transformDirection(frontFace.matrixWorld);
+      const o = new THREE.Vector3().setFromMatrixPosition(frontFace.matrixWorld);
+      const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(n, o);
+      if (!ray.ray.intersectPlane(plane, hit)) return null;
+      const local = frontFace.worldToLocal(hit.clone());
+      return { x: local.x / DR, y: local.y / DR };
     },
     /** Положення стрілок: хвилини від 0:00 і частка хвилини для секундної стрілки. */
     setTime(mins, sec = 0) { handMins = mins; secFrac = sec; },
