@@ -215,7 +215,8 @@ export const BADGES: Badge[] = [
   { id: 'day',      ico: '🗓️', nm: 'Розпорядник', hint: 'Пройди «Розпорядок дня»', test: p => p.adventures.routine.stars >= 2 },
   { id: 'chrono',   ico: '⏳', nm: 'Хронометр',  hint: 'Пройди «Скільки минуло?»', test: p => p.adventures.elapsed.stars >= 2 },
   { id: 'feel',     ico: '⏱️', nm: 'Відчуваю час', hint: 'Пройди «Скільки триває хвилина?»', test: p => p.adventures.feel.stars >= 2 },
-  { id: 'faces',    ico: '🕰️', nm: 'Годинникар', hint: 'Пройди «Справжні годинники»', test: p => p.adventures.faces.stars >= 2 }
+  { id: 'faces',    ico: '🕰️', nm: 'Годинникар', hint: 'Пройди «Справжні годинники»', test: p => p.adventures.faces.stars >= 2 },
+  { id: 'daily',    ico: '🏠', nm: 'Щоденна хвилинка', hint: '3 дні поспіль звір час із годинником удома', test: p => p.daily.best >= 3 }
 ];
 
 /* Парк росте разом із зірками — це «мета-нагорода», заради якої хочеться повертатися. */

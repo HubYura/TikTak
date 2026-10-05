@@ -11,6 +11,8 @@ export interface LevelRec { stars: number; best: number; asked: number; right: n
 export interface TrapStat { seen: number; fell: number }
 export interface ReviewItem { h: number; m: number; kind: TaskKind; level: number; due: number }
 export interface DayRec { asked: number; right: number; ms: number }
+/** «Хвилинка часу»: раз на день звірити стрілки з годинником удома. */
+export interface DailyRec { last: string; streak: number; best: number; count: number }
 
 export interface Progress {
   v: 2;
@@ -26,6 +28,7 @@ export interface Progress {
   traps: Record<Trap, TrapStat>;
   review: ReviewItem[];
   days: Record<string, DayRec>;
+  daily: DailyRec;
   settings: { voice: boolean; autoRead: boolean };
 }
 
@@ -49,6 +52,7 @@ export function blankProgress(levels: number): Progress {
     traps: Object.fromEntries(TRAPS.map(t => [t, { seen: 0, fell: 0 }])) as Record<Trap, TrapStat>,
     review: [],
     days: {},
+    daily: { last: '', streak: 0, best: 0, count: 0 },
     settings: { voice: true, autoRead: true }
   };
 }
@@ -103,6 +107,11 @@ export function migrate(raw: unknown, levels: number): Progress | null {
       if (/^\d{4}-\d{2}-\d{2}$/.test(k) && isObj(v)) p.days[k] = { asked: num(v.asked), right: num(v.right), ms: num(v.ms) };
     }
   }
+  if (isObj(raw.daily)) {
+    const d = raw.daily;
+    p.daily = { last: typeof d.last === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d.last) ? d.last : '',
+                streak: num(d.streak), best: num(d.best), count: num(d.count) };
+  }
   if (isObj(raw.settings)) {
     p.settings = {
       voice: typeof raw.settings.voice === 'boolean' ? raw.settings.voice : true,
@@ -149,3 +158,18 @@ export function logTime(p: Progress, ms: number, now = new Date()): void {
   const d = p.days[k] || (p.days[k] = { asked: 0, right: 0, ms: 0 });
   d.ms += ms;
 }
+
+/** Зараховує «хвилинку часу» за сьогодні. Повертає false, якщо сьогодні вже було. */
+export function markDaily(p: Progress, now = new Date()): boolean {
+  const today = dayKey(now);
+  if (p.daily.last === today) return false;
+  const y = new Date(now); y.setDate(y.getDate() - 1);
+  p.daily.streak = p.daily.last === dayKey(y) ? p.daily.streak + 1 : 1;
+  p.daily.best = Math.max(p.daily.best, p.daily.streak);
+  p.daily.count++;
+  p.daily.last = today;
+  return true;
+}
+
+/** Чи вже була «хвилинка часу» сьогодні. */
+export const dailyDone = (p: Progress, now = new Date()): boolean => p.daily.last === dayKey(now);
