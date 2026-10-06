@@ -8,6 +8,8 @@ export interface Tower3D {
   /** Час доби для етапу «Ранок, день, вечір, ніч», хвилини від півночі; null — полудень. */
   setDay(mins: number | null): void;
   overview(): void;
+  /** Для автотестів: що зараз видно на вежі. */
+  debugState(): { stage: number; practice: boolean; half: boolean; quarter: boolean; ghostOpacity: number; tier: number };
   /** Урок: «Тепер ти!» — камеру пальцем не крутимо. */
   setInteractive(on: boolean): void;
   /** «Підсвітка» уроку: що пульсує на циферблаті. */
