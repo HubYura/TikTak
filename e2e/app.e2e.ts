@@ -200,6 +200,46 @@ test.describe('Батьки', () => {
   });
 });
 
+test.describe('Резервна копія', () => {
+  test('зберегти у файл, скинути, відновити з файлу; код теж працює', async ({ page }) => {
+    await start(page, 'practice');
+    await page.evaluate(() => { const k = 'chasopark.progress.v2'; const p = JSON.parse(localStorage.getItem(k)!); p.totals.asked = 77; p.unlocked = 3; localStorage.setItem(k, JSON.stringify(p)); });
+    await page.reload();
+    await page.waitForFunction(() => !!window.__tower3d?.());
+    const openReport = async () => {
+      await click(page, 'btnParents');
+      const [a, b] = (await page.locator('#gQ').textContent())!.match(/\d+/g)!.map(Number);
+      await page.fill('#gA', String(a * b));
+      await page.press('#gA', 'Enter');
+      await expect(page.locator('.r-backup')).toBeVisible();
+    };
+    page.on('dialog', d => d.accept());
+    const asked = () => page.evaluate(() => JSON.parse(localStorage.getItem('chasopark.progress.v2')!).totals.asked);
+
+    await openReport();
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: '⬇ Зберегти у файл' }).click()]);
+    const file = await dl.path();
+    expect(dl.suggestedFilename()).toMatch(/^chasopark-\d{4}-\d{2}-\d{2}\.json$/);
+    await page.getByRole('button', { name: 'Скинути весь прогрес' }).click();
+    expect(await asked()).toBe(0);
+
+    await openReport();
+    await page.locator('.r-backup input[type=file]').setInputFiles(file);
+    await expect.poll(asked).toBe(77);
+
+    // Код: скопіювати (у полі з'являється CP1-…), скинути, вставити, відновити
+    await openReport();
+    await page.getByRole('button', { name: '📋 Скопіювати код' }).click();
+    const code = await page.locator('.r-code').inputValue();
+    expect(code.startsWith('CP1-')).toBe(true);
+    await page.getByRole('button', { name: 'Скинути весь прогрес' }).click();
+    await openReport();
+    await page.fill('.r-code', code);
+    await page.getByRole('button', { name: '↩ Відновити з коду' }).click();
+    await expect.poll(asked).toBe(77);
+  });
+});
+
 test.describe('Телефон', () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 

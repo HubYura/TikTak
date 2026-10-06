@@ -23,7 +23,7 @@
 ![Пристрої](https://img.shields.io/badge/пристрої-телефон_·_планшет_·_ПК-CDBDFF?style=flat-square&labelColor=15111F)
 
 [![CI](https://github.com/HubYura/TikTak/actions/workflows/ci.yml/badge.svg)](https://github.com/HubYura/TikTak/actions/workflows/ci.yml)
-![Тести](https://img.shields.io/badge/тести-87_модульних_+_10_e2e-A6EF7A?style=flat-square&labelColor=15111F)
+![Тести](https://img.shields.io/badge/тести-89_модульних_+_11_e2e-A6EF7A?style=flat-square&labelColor=15111F)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Three.js](https://img.shields.io/badge/Three.js-3D-000000?style=flat-square&logo=threedotjs&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-8-646CFF?style=flat-square&logo=vite&logoColor=white)
@@ -54,6 +54,7 @@
 | 👪 **Звіт для батьків** | Прогрес, активність за 2 тижні, помилки з поясненнями і **план на тиждень**: три 5-хвилинні заняття вдома. |
 | ✂️ **Набір для друку** | Паперовий годинник, піца-годинник, картки «ранок / день / вечір / ніч», розклад дня — 4 аркуші A4. |
 | 🔒 **Приватно** | Жодних акаунтів, реклами й трекерів. Увесь прогрес лишається на пристрої дитини. |
+| 💾 **Резервна копія** | Прогрес можна зберегти у файл або короткий код і відновити на іншому пристрої — без реєстрації. |
 
 ---
 
@@ -67,7 +68,7 @@
 
 | 🎙️ | 🎬 | 🕐 | ✋ | 🧪 | 💸 |
 |:---:|:---:|:---:|:---:|:---:|:---:|
-| **1 227**<br>фраз Тіка,<br>начитаних голосом | **21**<br>відеопояснення<br>(Blender + озвучка) | **720**<br>положень стрілок —<br>кожне озвучене | **8**<br>інтерактивних дій<br>«Тепер ти!» | **97**<br>автотестів<br>(87 + 10 e2e) | **0 ₴**<br>і 0 реклами |
+| **1 227**<br>фраз Тіка,<br>начитаних голосом | **21**<br>відеопояснення<br>(Blender + озвучка) | **720**<br>положень стрілок —<br>кожне озвучене | **8**<br>інтерактивних дій<br>«Тепер ти!» | **100**<br>автотестів<br>(89 + 11 e2e) | **0 ₴**<br>і 0 реклами |
 
 </div>
 
@@ -100,7 +101,7 @@
 🎬  Відеопояснення             21 кліп, згенерований у Blender зі сценаріїв; субтитри VTT
 🧠  Адаптивність               облік 8 пасток, інтервальне повторення, підбір завдань під слабкі місця
 📴  Офлайн                     PWA з service worker: працює без інтернету після першого відкриття
-🧪  Якість                     TypeScript strict · 87 модульних тестів · 10 наскрізних сценаріїв у браузері на кожен PR
+🧪  Якість                     TypeScript strict · 89 модульних тестів · 11 наскрізних сценаріїв у браузері на кожен PR
 ```
 
 **Стек:** TypeScript · Vite · Three.js · Vitest · Playwright · vite-plugin-pwa · Blender (відео) · ukrainian-tts (голос) · Vercel.
