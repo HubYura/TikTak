@@ -4,7 +4,7 @@ import { TRAPS, type Trap } from './questions';
 
 export type TaskKind = 'read' | 'say' | 'set';
 
-export const ADVENTURE_IDS = ['routine', 'elapsed', 'faces', 'feel'] as const;
+export const ADVENTURE_IDS = ['routine', 'elapsed', 'faces', 'feel', 'plan'] as const;
 export type AdventureId = typeof ADVENTURE_IDS[number];
 
 export interface LevelRec { stars: number; best: number; asked: number; right: number }

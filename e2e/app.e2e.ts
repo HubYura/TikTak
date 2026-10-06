@@ -163,6 +163,27 @@ test.describe('Гра', () => {
   });
 });
 
+test.describe('Плануємо день (9–10 років)', () => {
+  test('пригода відкривається після «П’ятірками», задача з 24-годинним часом, пояснення помилки', async ({ page }) => {
+    await start(page, 'practice');
+    const plan = page.locator('#adventures .level-btn', { hasText: 'Плануємо день' });
+    await expect(plan).toBeDisabled();
+    await page.evaluate(() => { const k = 'chasopark.progress.v2'; const p = JSON.parse(localStorage.getItem(k)!); p.unlocked = 4; localStorage.setItem(k, JSON.stringify(p)); });
+    await page.reload();
+    await page.waitForFunction(() => !!window.__tower3d?.());
+    await click(page, 'modePractice');
+    await expect(plan).toBeEnabled();
+    await plan.click();
+    await expect(page.locator('#pChip')).toContainText('Плануємо день');
+    await expect(page.locator('#qText')).toHaveText(/\d{2}:\d{2}/);
+    await expect(page.locator('#qOpts .opt')).toHaveCount(4);
+    // Будь-яка відповідь — відгук і прокручені до кінця стрілки
+    await page.locator('#qOpts .opt').first().click();
+    await expect(page.locator('#qFb')).toBeVisible();
+    await expect(page.locator('#pNext')).toBeVisible();
+  });
+});
+
 test.describe('Батьки', () => {
   test('звіт за множенням, план на тиждень і набір для друку', async ({ page }) => {
     await start(page, 'practice');
