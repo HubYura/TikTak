@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { STORE, STORE_V1, blankProgress, dailyDone, loadProgress, logAnswer, markDaily, migrate, saveProgress } from '../src/core/progress';
+import { STORE, STORE_V1, blankProgress, dailyDone, exportCode, exportProgress, importProgress, loadProgress, logAnswer, markDaily, migrate, saveProgress } from '../src/core/progress';
 
 const mem = (init: Record<string, string> = {}) => {
   const m = new Map(Object.entries(init));
@@ -80,5 +80,30 @@ describe('налаштування озвучки', () => {
     expect(migrate(JSON.parse(JSON.stringify(p)), 5)!.settings.readOptions).toBe(false);
     const { readOptions: _, ...old } = p.settings;
     expect(migrate({ ...p, settings: old }, 5)!.settings.readOptions).toBe(true);
+  });
+});
+
+describe('резервна копія', () => {
+  const sample = () => {
+    const p = blankProgress(5);
+    p.unlocked = 3; p.totals.asked = 42; p.badges = ['sharp', 'daily'];
+    markDaily(p, new Date(2026, 9, 5));
+    return p;
+  };
+
+  it('файл і код відновлюють той самий прогрес', () => {
+    const p = sample();
+    expect(importProgress(exportProgress(p), 5)).toEqual(p);
+    const code = exportCode(p);
+    expect(code.startsWith('CP1-')).toBe(true);
+    expect(importProgress(code, 5)).toEqual(p);
+    expect(importProgress('  ' + code.slice(0, 20) + '\n' + code.slice(20) + '  ', 5)).toEqual(p);
+  });
+
+  it('чуже чи зіпсоване не приймає', () => {
+    expect(importProgress('{"app":"other","progress":{}}', 5)).toBeNull();
+    expect(importProgress('CP1-!!!', 5)).toBeNull();
+    expect(importProgress('просто текст', 5)).toBeNull();
+    expect(importProgress(exportProgress(blankProgress(5)), 4)).toBeNull();   // інша кількість рівнів
   });
 });

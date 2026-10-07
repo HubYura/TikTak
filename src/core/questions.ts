@@ -25,7 +25,7 @@ export interface Option {
   m?: number;
 }
 
-class OptionSet {
+export class OptionSet {
   private seen = new Map<string, Option>();
   add(o: Option): void {
     if (!this.seen.has(o.label)) this.seen.set(o.label, o);

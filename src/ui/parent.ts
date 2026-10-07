@@ -3,7 +3,7 @@
 import { isWeak, weakness } from '../core/adaptive';
 import { homePlan } from '../core/homeplan';
 import { ADVENTURES, BADGES, LEVELS, MAX_STARS, STAGES, totalStars } from '../core/content';
-import { blankProgress, dayKey } from '../core/progress';
+import { blankProgress, dayKey, exportCode, exportProgress, importProgress, type Progress } from '../core/progress';
 import type { Trap } from '../core/questions';
 import { SFX } from '../lib/audio';
 import { Voice } from '../lib/voice';
@@ -274,6 +274,47 @@ export function openReport(onReset: () => void): void {
   toggle('Читати варіанти відповідей уголос', p.settings.readOptions, v => { p.settings.readOptions = v; app.save(); },
     !Voice.available(), 'Для дітей, які ще не читають. Біля словесних варіантів завжди є кнопка 🔊.');
   body.append(settings);
+
+  // Резервна копія: прогрес живе лише в цьому браузері — його можна зберегти й перенести
+  body.append(h('h3', { text: '💾 Резервна копія' }),
+    h('p', { class: 'r-note', text: 'Прогрес зберігається лише в цьому браузері. Збережіть копію — і відновіть її на іншому пристрої або після очищення даних браузера.' }));
+  const restore = (next: Progress | null, from: string) => {
+    if (!next) { alert('Це не схоже на резервну копію ЧасоПарку — нічого не змінено.'); return; }
+    const stars = next.levels.reduce((s, l) => s + l.stars, 0) + Object.values(next.adventures).reduce((s, a) => s + a.stars, 0);
+    if (!confirm(`Відновити прогрес ${from}? (${next.totals.asked} відповідей, ${stars} ⭐) Поточний прогрес на цьому пристрої буде замінено.`)) return;
+    next.welcomed = true;
+    app.p = next;
+    app.save();
+    $('report').hidden = true;
+    onReset();
+  };
+  const saveFile = h('button', { class: 'btn btn-sm', type: 'button', text: '⬇ Зберегти у файл' });
+  saveFile.addEventListener('click', () => {
+    const url = URL.createObjectURL(new Blob([exportProgress(p)], { type: 'application/json' }));
+    const a = h('a', { href: url, download: 'chasopark-' + dayKey() + '.json' });
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  });
+  const fileIn = h('input', { type: 'file', accept: '.json,application/json', hidden: '' });
+  fileIn.addEventListener('change', async () => {
+    const f = fileIn.files?.[0];
+    if (f) restore(importProgress(await f.text(), LEVELS.length), 'з файлу');
+    fileIn.value = '';
+  });
+  const openFile = h('button', { class: 'btn btn-sm', type: 'button', text: '⬆ Відновити з файлу' });
+  openFile.addEventListener('click', () => fileIn.click());
+  const codeBox = h('textarea', { class: 'r-code', rows: '3', placeholder: 'Сюди можна вставити код резервної копії', spellcheck: 'false' });
+  const copyCode = h('button', { class: 'btn btn-sm', type: 'button', text: '📋 Скопіювати код' });
+  copyCode.addEventListener('click', async () => {
+    const code = exportCode(p);
+    codeBox.value = code;
+    try { await navigator.clipboard.writeText(code); copyCode.textContent = '✅ Скопійовано'; }
+    catch { codeBox.select(); copyCode.textContent = '👆 Скопіюйте код вище'; }
+    setTimeout(() => { copyCode.textContent = '📋 Скопіювати код'; }, 2500);
+  });
+  const useCode = h('button', { class: 'btn btn-sm', type: 'button', text: '↩ Відновити з коду' });
+  useCode.addEventListener('click', () => restore(importProgress(codeBox.value, LEVELS.length), 'з коду'));
+  body.append(h('div', { class: 'r-backup' }, saveFile, openFile, fileIn, copyCode, useCode), codeBox);
 
   const reset = h('button', { class: 'btn btn-danger btn-sm', type: 'button', text: 'Скинути весь прогрес' });
   reset.addEventListener('click', () => {

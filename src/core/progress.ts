@@ -4,7 +4,7 @@ import { TRAPS, type Trap } from './questions';
 
 export type TaskKind = 'read' | 'say' | 'set';
 
-export const ADVENTURE_IDS = ['routine', 'elapsed', 'faces', 'feel'] as const;
+export const ADVENTURE_IDS = ['routine', 'elapsed', 'faces', 'feel', 'plan'] as const;
 export type AdventureId = typeof ADVENTURE_IDS[number];
 
 export interface LevelRec { stars: number; best: number; asked: number; right: number }
@@ -175,3 +175,38 @@ export function markDaily(p: Progress, now = new Date()): boolean {
 
 /** Чи вже була «хвилинка часу» сьогодні. */
 export const dailyDone = (p: Progress, now = new Date()): boolean => p.daily.last === dayKey(now);
+
+/* ---------- Резервна копія ----------
+   Прогрес живе лише в браузері, тож батьки можуть зберегти його у файл або короткий код
+   і відновити на іншому пристрої чи після очищення даних браузера. */
+
+const BACKUP_TAG = 'chasopark';
+
+/** Файл резервної копії (JSON). */
+export function exportProgress(p: Progress, now = new Date()): string {
+  return JSON.stringify({ app: BACKUP_TAG, savedAt: now.toISOString(), progress: p });
+}
+
+/** Текстовий код для месенджера: той самий JSON у base64 (UTF-8). */
+export function exportCode(p: Progress): string {
+  const bytes = new TextEncoder().encode(exportProgress(p));
+  let bin = '';
+  bytes.forEach(b => { bin += String.fromCharCode(b); });
+  return 'CP1-' + btoa(bin);
+}
+
+/** Розбирає файл або код. null — це не резервна копія ЧасоПарку або вона зіпсована. */
+export function importProgress(text: string, levels: number): Progress | null {
+  try {
+    let json = text.trim();
+    if (json.startsWith('CP1-')) {
+      const bin = atob(json.slice(4).replace(/\s+/g, ''));
+      json = new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+    }
+    const raw = JSON.parse(json);
+    if (!isObj(raw) || raw.app !== BACKUP_TAG) return null;
+    return migrate(raw.progress, levels);
+  } catch {
+    return null;
+  }
+}

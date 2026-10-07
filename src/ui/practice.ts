@@ -13,6 +13,7 @@ import {
   type ElapsedTask, type Option, type RoutineTask, type Trap
 } from '../core/questions';
 import { feelTask, judgeEstimate, type FeelTask } from '../core/feel';
+import { planningTask, type PlanTask } from '../core/planning';
 import { homeSnap, homeTolerance, judgeHome, type HomeHint } from '../core/homeclock';
 import { pick, rnd, shuffle } from '../core/rng';
 import { TRAP_VIDEOS } from '../core/videos';
@@ -33,6 +34,7 @@ type Task =
   | { type: 'clock'; plan: Plan; options: Option[]; style?: FaceStyle }
   | { type: 'routine'; t: RoutineTask }
   | { type: 'elapsed'; t: ElapsedTask }
+  | { type: 'plan'; t: PlanTask }
   | { type: 'feel'; t: FeelTask }
   | { type: 'home'; tries: number };
 
@@ -160,6 +162,12 @@ function newTask(): void {
     task = { type: 'routine', t: routineTask(act, kind, others) };
     raw = dial = toDial(act.h24, act.m);
     setSky(act.h24);
+  } else if (track.id === 'plan') {
+    // 9–10 років: тривалість у 24-годинному форматі; стрілки показують початок (або кінець — для «коли почалося?»)
+    const t = fresh(() => planningTask(Math.random), x => 'plan:' + x.text, 6);
+    task = { type: 'plan', t };
+    raw = dial = ((t.from % 720) + 720) % 720;
+    setSky(Math.floor((t.from % 1440) / 60));
   } else {
     const durs = [15, 30, 45, 60, 90, 20, 10];
     const d = fresh(() => pick(durs), x => 'dur:' + x, 2);
@@ -185,7 +193,7 @@ function newTask(): void {
 
 /** Звичайний циферблат — на 3D-вежі; інші стилі, секундомір і «Розпорядок дня» (там підказує небо) — у SVG. */
 export function sync3D(style: FaceStyle = task?.type === 'clock' ? task.style ?? 'teach' : 'teach'): void {
-  const in3D = !!task && ((task.type === 'clock' && style === 'teach') || task.type === 'elapsed' || task.type === 'home');
+  const in3D = !!task && ((task.type === 'clock' && style === 'teach') || task.type === 'elapsed' || task.type === 'plan' || task.type === 'home');
   show3D(app.mode === 'practice' && in3D ? 'practice' : null, () => renderDial());
 }
 
@@ -267,6 +275,10 @@ function renderTask(): void {
     text.textContent = t.t.story;
     spoken = t.t.story;
     options = t.t.options;
+  } else if (t.type === 'plan') {
+    text.textContent = t.t.text;
+    spoken = t.t.text;
+    options = t.t.options;
   }
 
   opts.className = 'opts' + (wordy ? ' wordy' : '');
@@ -321,6 +333,12 @@ function explain(trap: Trap | undefined): string {
       ? `Стрілки о ${digital(a.h24, a.m)} вранці й увечері стоять <b>однаково</b>! Дивись на небо: зараз ${POD[partOfDay(a.h24)].word}.`
       : 'Після 12 дня електронний годинник рахує далі: 13, 14, 15… До денного й вечірнього часу <b>додаємо 12</b>.';
   }
+  if (t.type === 'plan') {
+    if (trap === 'carry') return 'Набралося 60 хвилин — це <b>ще одна година</b>. А коли хвилин не вистачає, «позичаємо» годину: вона дає 60 хвилин.';
+    if (trap === 'decimal') return 'У годині <b>60</b> хвилин, а не 100. Хвилин не може бути 60 і більше — це вже наступна година.';
+    if (trap === 'ampm') return 'Через північ рахуй частинами: <b>до 24:00</b>, а потім ще від 0:00 до ранку.';
+    return '';
+  }
   if (t.type === 'elapsed') {
     if (trap === 'carry') return 'Довга стрілка пройшла через 12 — отже, <b>година вже стала наступною</b>.';
     if (trap === 'decimal') return 'Пів години — це 30 хвилин, а не 50.';
@@ -335,6 +353,7 @@ function rightText(): string {
   if (t.type === 'routine') return correctLabel(t.t.options);
   if (t.type === 'feel') return t.t.mode === 'estimate' ? t.t.seconds + ' секунд' : correctLabel(t.t.options);
   if (t.type === 'home') return '';
+  if (t.type === 'plan') return t.t.answer;
   return digital(t.t.end.h, t.t.end.m) + ' — ' + sayTime(t.t.end.h, t.t.end.m);
 }
 
@@ -458,6 +477,8 @@ function finish(ok: boolean, exposed: Trap[], fell: Trap | undefined, srcEl: Ele
 
   // «Скільки минуло?»: після відповіді прокручуємо стрілки до кінця — це і є пояснення
   if (task!.type === 'elapsed') animateDial(toDial(task!.t.end.h, task!.t.end.m), 1600);
+  // «Плануємо день»: стрілки прокручуються від початку до кінця (або назад — для «коли почалося?»)
+  if (task!.type === 'plan') { const p = task!.t; animateDial(((p.to % 720) + 720) % 720, 1800); }
 
   renderDots();
   renderScore();
@@ -759,7 +780,9 @@ function animateDial(to: number, ms = 700): void {
   // Крутимо вперед найкоротшим шляхом, але для «Скільки минуло?» — лише вперед
   let target = to;
   while (target < dial) target += 720;
-  if (task?.type !== 'elapsed' && target - dial > 360) target -= 720;
+  const forward = task?.type === 'elapsed' || (task?.type === 'plan' && task.t.to > task.t.from);
+  if (task?.type === 'plan' && !forward) { while (target > dial) target -= 720; }   // «коли почалося?» — крутимо назад
+  else if (!forward && target - dial > 360) target -= 720;
   anim = { from: dial, to: target, t0: performance.now(), ms };
 }
 

@@ -1077,3 +1077,7 @@ body.bg-3d .panel.can-scroll { -webkit-mask-image: var(--fade); mask-image: var(
 /* «Тепер ти!» у картці «Спробуй сам» і на вежі */
 .try-btn { margin-top: 10px; }
 body.learn-try .scene3d { cursor: pointer; }
+
+/* Резервна копія у звіті для батьків */
+.r-backup { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0 10px; }
+.r-code { width: 100%; font: 600 12px/1.4 ui-monospace, monospace; border: var(--bw) solid var(--ink); border-radius: 12px; padding: 8px 10px; background: var(--white); resize: vertical; }

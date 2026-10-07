@@ -163,6 +163,27 @@ test.describe('Гра', () => {
   });
 });
 
+test.describe('Плануємо день (9–10 років)', () => {
+  test('пригода відкривається після «П’ятірками», задача з 24-годинним часом, пояснення помилки', async ({ page }) => {
+    await start(page, 'practice');
+    const plan = page.locator('#adventures .level-btn', { hasText: 'Плануємо день' });
+    await expect(plan).toBeDisabled();
+    await page.evaluate(() => { const k = 'chasopark.progress.v2'; const p = JSON.parse(localStorage.getItem(k)!); p.unlocked = 4; localStorage.setItem(k, JSON.stringify(p)); });
+    await page.reload();
+    await page.waitForFunction(() => !!window.__tower3d?.());
+    await click(page, 'modePractice');
+    await expect(plan).toBeEnabled();
+    await plan.click();
+    await expect(page.locator('#pChip')).toContainText('Плануємо день');
+    await expect(page.locator('#qText')).toHaveText(/\d{2}:\d{2}/);
+    await expect(page.locator('#qOpts .opt')).toHaveCount(4);
+    // Будь-яка відповідь — відгук і прокручені до кінця стрілки
+    await page.locator('#qOpts .opt').first().click();
+    await expect(page.locator('#qFb')).toBeVisible();
+    await expect(page.locator('#pNext')).toBeVisible();
+  });
+});
+
 test.describe('Батьки', () => {
   test('звіт за множенням, план на тиждень і набір для друку', async ({ page }) => {
     await start(page, 'practice');
@@ -176,6 +197,46 @@ test.describe('Батьки', () => {
     await expect(page.locator('.r-kit')).toHaveAttribute('href', '/print.html');
     const kit = await page.request.get('/print.html');
     expect(kit.ok()).toBe(true);
+  });
+});
+
+test.describe('Резервна копія', () => {
+  test('зберегти у файл, скинути, відновити з файлу; код теж працює', async ({ page }) => {
+    await start(page, 'practice');
+    await page.evaluate(() => { const k = 'chasopark.progress.v2'; const p = JSON.parse(localStorage.getItem(k)!); p.totals.asked = 77; p.unlocked = 3; localStorage.setItem(k, JSON.stringify(p)); });
+    await page.reload();
+    await page.waitForFunction(() => !!window.__tower3d?.());
+    const openReport = async () => {
+      await click(page, 'btnParents');
+      const [a, b] = (await page.locator('#gQ').textContent())!.match(/\d+/g)!.map(Number);
+      await page.fill('#gA', String(a * b));
+      await page.press('#gA', 'Enter');
+      await expect(page.locator('.r-backup')).toBeVisible();
+    };
+    page.on('dialog', d => d.accept());
+    const asked = () => page.evaluate(() => JSON.parse(localStorage.getItem('chasopark.progress.v2')!).totals.asked);
+
+    await openReport();
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: '⬇ Зберегти у файл' }).click()]);
+    const file = await dl.path();
+    expect(dl.suggestedFilename()).toMatch(/^chasopark-\d{4}-\d{2}-\d{2}\.json$/);
+    await page.getByRole('button', { name: 'Скинути весь прогрес' }).click();
+    expect(await asked()).toBe(0);
+
+    await openReport();
+    await page.locator('.r-backup input[type=file]').setInputFiles(file);
+    await expect.poll(asked).toBe(77);
+
+    // Код: скопіювати (у полі з'являється CP1-…), скинути, вставити, відновити
+    await openReport();
+    await page.getByRole('button', { name: '📋 Скопіювати код' }).click();
+    const code = await page.locator('.r-code').inputValue();
+    expect(code.startsWith('CP1-')).toBe(true);
+    await page.getByRole('button', { name: 'Скинути весь прогрес' }).click();
+    await openReport();
+    await page.fill('.r-code', code);
+    await page.getByRole('button', { name: '↩ Відновити з коду' }).click();
+    await expect.poll(asked).toBe(77);
   });
 });
 
