@@ -1074,7 +1074,7 @@ body.bg-3d .panel.can-scroll { -webkit-mask-image: var(--fade); mask-image: var(
 #panelLearn .card.reading h3::after { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { #panelLearn .card.reading { transform: none; } }
 
-/* «Тепер ти!» у картці «Спробуй сам» і на вежі */
+/* «Тепер ти!» у картці «Твоя черга» і на вежі */
 .try-btn { margin-top: 10px; }
 body.learn-try .scene3d { cursor: pointer; }
 

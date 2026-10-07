@@ -175,7 +175,7 @@ function celebratePark(): void {
   }, 950);
   setTimeout(() => {
     $('ptIco').textContent = a.ico;
-    $('ptText').textContent = 'На твоїй планеті з’явився атракціон «' + a.name + '». Збирай зірки — парк на планеті ростиме далі!';
+    $('ptText').textContent = 'На твоїй планеті тепер є «' + a.name + '». Збирай зірки, і парк ростиме далі!';
     $('parkToast').hidden = false;
     say(parkLine(a.name), 'cheer', 3000);
     $('ptOk').focus();

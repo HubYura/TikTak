@@ -98,7 +98,7 @@ test.describe('Урок', () => {
     await expect(page.locator('#buddySay')).toContainText('інше число');
     const six = await screenOf(page, 0, -0.78);
     await page.mouse.click(six.x, six.y);
-    await expect(page.locator('#buddySay')).toContainText('Шість — унизу');
+    await expect(page.locator('#buddySay')).toContainText('Шість унизу');
 
     await goStage(page, 5);
     await page.waitForTimeout(3000);
