@@ -23,7 +23,7 @@ let tickFlip = false;
 let quietMs = 0;
 const AFTER_SPEECH = 1600;
 
-/* Тік зачитує етап повністю: свою фразу, «Головне», «Часта помилка» і «Спробуй сам» — по черзі,
+/* Тік зачитує етап повністю: свою фразу, «Головне», «Часта помилка» і «Твоя черга» — по черзі,
    підсвічуючи картку, яку читає. Діти 6 років ще погано читають, тож текст не має бути лише на екрані. */
 type Part = { text: string; card: 'idea' | 'warn' | 'try' | null };
 let narr: Part[] = [];
@@ -31,7 +31,7 @@ let narrIdx = 0;
 let narrOn = false;          // пауза зупиняє й читання, а не лише перемикання етапів
 let narrQuiet = 0;
 const PART_GAP = 450;
-const LEAD: Record<'idea' | 'warn' | 'try', string> = { idea: 'Головне.', warn: 'Запам’ятай.', try: 'Спробуй сам.' };
+const LEAD: Record<'idea' | 'warn' | 'try', string> = { idea: 'Головне.', warn: 'Запам’ятай.', try: 'Твоя черга.' };
 
 function partsFor(i: number): Part[] {
   const st = STAGES[i];
