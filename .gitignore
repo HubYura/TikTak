@@ -2,7 +2,8 @@
 .idea/
 
 # Локальні налаштування Claude Code (містять абсолютні шляхи цієї машини)
-.claude/
+.claude/*
+!.claude/skills/
 
 # OS
 .DS_Store
