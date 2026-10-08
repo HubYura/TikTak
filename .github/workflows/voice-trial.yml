@@ -26,7 +26,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        engine: [lada, fish, breeze]
+        # Лада й Fish уже згенеровані попереднім запуском; тут лише Breeze на процесорі
+        engine: [breeze]
     steps:
       - uses: actions/checkout@v4
 
@@ -92,15 +93,36 @@ jobs:
           pip install -q -r /tmp/bz/requirements.txt "huggingface_hub[cli]"
           hf download BreezeBlue/Breeze-TTS-2 --local-dir /tmp/breeze-tts-2
           du -sh /tmp/breeze-tts-2
+          # infer.py працює лише з CUDA (швидкий потоковий рушій), тож на процесорі — звичайний model.generate
           cd /tmp/bz
-          i=0
-          for t in "$T1" "$T2"; do
-            i=$((i+1)); s=$(date +%s)
-            python infer.py /tmp/breeze-tts-2 \
-              --ref-audio "$GITHUB_WORKSPACE/ref.wav" --ref-text "$REF_TEXT" \
-              --text "$t" --output "$GITHUB_WORKSPACE/out/breeze_$i.wav"
-            echo "breeze_$i: $(( $(date +%s) - s )) s" | tee -a "$GITHUB_WORKSPACE/out/breeze_time.txt"
-          done
+          python - <<'EOF'
+          import os, sys, time
+          from pathlib import Path
+          import numpy as np, soundfile as sf, torch
+          sys.path.insert(0, '/tmp/bz')
+          from breeze_infer.runtime import load_runtime, set_all_seeds, update_generation_config_for_breeze
+          from breeze_infer.templates import get_template, prepare_inputs, select_template_name
+          torch.set_num_threads(os.cpu_count() or 4)
+          tok, model, at = load_runtime(Path('/tmp/breeze-tts-2'), device='cpu', attn_implementation='eager')
+          update_generation_config_for_breeze(model)
+          sr = int(model.config.codec_config.sampling_rate)
+          ws = os.environ['GITHUB_WORKSPACE']
+          for i, t in enumerate([os.environ['T1'], os.environ['T2']], 1):
+              s = time.time()
+              req = {'id': f'r{i}', 'text': t, 'speaker': 'S0',
+                     'ref_audio_path': f'{ws}/ref.wav', 'ref_text': os.environ['REF_TEXT']}
+              inputs = prepare_inputs(tok, at, model, [req], get_template(select_template_name(req)),
+                                      guidance_scale=1.0, guidance_scale_ref=None, guidance_scale_ins=None)
+              set_all_seeds(42)
+              with torch.inference_mode():
+                  out = model.generate(**inputs, output_audio=True, audio_tokenizer=at, max_new_tokens=400)
+              a = out[0] if isinstance(out, (list, tuple)) else out
+              a = (a[0] if isinstance(a, (list, tuple)) else a).float().cpu().numpy().squeeze()
+              sf.write(f'{ws}/out/breeze_{i}.wav', a, sr)
+              line = f'breeze_{i}: {time.time() - s:.0f} s ({len(a) / sr:.1f} s audio)'
+              print(line, flush=True)
+              open(f'{ws}/out/breeze_time.txt', 'a').write(line + '\n')
+          EOF
 
       - name: У mp3
         if: always()
