@@ -1,0 +1,138 @@
+name: Voice trial
+
+# Проба озвучки: ті самі дві фрази гри голосом Лади (поточна), Fish Speech S2 Pro і Breeze TTS 2.
+# Fish і Breeze клонують голос із зразка Лади, щоб порівнювати саму якість мовлення.
+# Результат (mp3 + час генерації) комітиться в voice-trial/ тієї ж гілки.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+    paths: ['.github/workflows/voice-trial.yml']
+
+permissions:
+  contents: write
+
+env:
+  T1: 'Тепер ти! Постав довгу стрілку на шість. Це пів кола, тридцять хвилин.'
+  T2: 'О третій сорок п’ять до четвертої лишилась чверть. Тому кажуть: за чверть четверта.'
+  REF_TEXT: 'Довга стрілка проходить ціле коло за годину. Секундна стрілка проходить коло за одну хвилину. Стрілки ходять по ньому завжди в один бік. Дивись на коротку стрілку, поки довга йде по колу.'
+  HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
+jobs:
+  synth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [lada, fish, breeze]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Звільнити диск під ваги моделей
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg portaudio19-dev
+
+      - name: Зразок голосу (4 фрази Лади з гри, ~12 с)
+        run: |
+          mkdir -p out
+          for f in 704cf0da1b95 aaa3489a9f50 f5ef5e24109e d9faca1987ed; do echo "file '$PWD/public/voice/c/$f.mp3'"; done > ref.txt
+          ffmpeg -loglevel error -f concat -safe 0 -i ref.txt -ac 1 -ar 44100 ref.wav
+          ffprobe -v error -show_entries format=duration -of csv=p=0 ref.wav
+
+      - name: Лада (ukrainian-tts)
+        if: matrix.engine == 'lada'
+        run: |
+          pip install -q git+https://github.com/robinhad/ukrainian-tts.git
+          python - <<'EOF'
+          import os, time
+          from ukrainian_tts.tts import TTS, Voices, Stress
+          tts = TTS(device='cpu')
+          for i, t in enumerate([os.environ['T1'], os.environ['T2']], 1):
+              s = time.time()
+              with open(f'out/lada_{i}.wav', 'wb') as f:
+                  _, acc = tts.tts(t, Voices.Lada.value, Stress.Dictionary.value, f)
+              print(f'lada_{i}: {time.time() - s:.1f} с · {acc}', flush=True)
+              open('out/lada_time.txt', 'a').write(f'lada_{i}: {time.time() - s:.1f} s\n')
+          EOF
+
+      - name: Fish Speech S2 Pro
+        if: matrix.engine == 'fish'
+        run: |
+          git clone -q --depth 1 https://github.com/fishaudio/fish-speech /tmp/fs
+          pip install -q torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q -e /tmp/fs "huggingface_hub[cli]"
+          hf download fishaudio/s2-pro --local-dir /tmp/fs/checkpoints/s2-pro
+          du -sh /tmp/fs/checkpoints/s2-pro
+          cd /tmp/fs
+          i=0
+          for t in "$T1" "$T2"; do
+            i=$((i+1)); s=$(date +%s)
+            python fish_speech/models/text2semantic/inference.py --device cpu \
+              --checkpoint-path checkpoints/s2-pro \
+              --prompt-audio "$GITHUB_WORKSPACE/ref.wav" --prompt-text "$REF_TEXT" \
+              --text "$t" --output "$GITHUB_WORKSPACE/out/fish_$i.wav"
+            echo "fish_$i: $(( $(date +%s) - s )) s" | tee -a "$GITHUB_WORKSPACE/out/fish_time.txt"
+          done
+
+      - name: Breeze TTS 2
+        if: matrix.engine == 'breeze'
+        run: |
+          git clone -q --depth 1 https://github.com/breezeblue-ai/breeze-tts /tmp/bz
+          pip install -q torch==2.9.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q -r /tmp/bz/requirements.txt "huggingface_hub[cli]"
+          hf download BreezeBlue/Breeze-TTS-2 --local-dir /tmp/breeze-tts-2
+          du -sh /tmp/breeze-tts-2
+          cd /tmp/bz
+          i=0
+          for t in "$T1" "$T2"; do
+            i=$((i+1)); s=$(date +%s)
+            python infer.py /tmp/breeze-tts-2 \
+              --ref-audio "$GITHUB_WORKSPACE/ref.wav" --ref-text "$REF_TEXT" \
+              --text "$t" --output "$GITHUB_WORKSPACE/out/breeze_$i.wav"
+            echo "breeze_$i: $(( $(date +%s) - s )) s" | tee -a "$GITHUB_WORKSPACE/out/breeze_time.txt"
+          done
+
+      - name: У mp3
+        if: always()
+        run: |
+          cp ref.wav out/ref_${{ matrix.engine }}.wav 2>/dev/null || true
+          for w in out/*.wav; do [ -f "$w" ] && ffmpeg -loglevel error -y -i "$w" -ac 1 -b:a 96k "${w%.wav}.mp3" && rm "$w"; done
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: voice-${{ matrix.engine }}
+          path: out/
+
+  commit:
+    needs: synth
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: voice-trial
+          merge-multiple: true
+      - name: Закомітити результати
+        run: |
+          ls -la voice-trial || exit 0
+          rm -f voice-trial/ref_fish.mp3 voice-trial/ref_breeze.mp3
+          [ -f voice-trial/ref_lada.mp3 ] && mv voice-trial/ref_lada.mp3 voice-trial/ref.mp3
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add voice-trial
+          git commit -m 'Проба озвучки: Лада, Fish Speech, Breeze TTS 2' || exit 0
+          git pull --rebase -q origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
