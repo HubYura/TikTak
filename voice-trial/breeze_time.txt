@@ -1,2 +1,0 @@
-breeze_1: 139 s (6.8 s audio)
-breeze_2: 168 s (10.2 s audio)

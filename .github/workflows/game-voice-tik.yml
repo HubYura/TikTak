@@ -1,0 +1,47 @@
+name: Game voice (Tik)
+
+# Начитує шматки фраз гри голосом Тіка через ElevenLabs (video/eleven_voice.py).
+# Поки начитано не все, записи лежать у voice-tik/ і гра говорить Ладою;
+# щойно все готово — скрипт сам перемикає гру на Тіка.
+# Кредити скінчились — запуск зберігає зроблене; наступний (вручну: Actions → Run workflow) продовжить.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+    paths:
+      - 'public/voice/chunks.json'
+      - 'video/eleven_voice.py'
+      - '.github/workflows/game-voice-tik.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: game-voice-tik-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  tik:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Начитати голосом Тіка
+        run: python video/eleven_voice.py
+      - name: Коміт
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A voice-tik public/voice
+          if git diff --cached --quiet; then echo "Без змін"; exit 0; fi
+          git commit -m "Voice the game lines with Tik (ElevenLabs)"
+          git pull --rebase origin "${GITHUB_REF_NAME}"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
