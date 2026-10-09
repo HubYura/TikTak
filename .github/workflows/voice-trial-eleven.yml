@@ -1,0 +1,76 @@
+name: Voice trial (ElevenLabs)
+
+# Проба ElevenLabs (eleven_v4) на двох фразах гри: цілою фразою і склеєною зі шматків,
+# як їх ріже гра (speechPlan). Ключ — секрет ELEVENLABS_API_KEY. Результат — у voice-trial/.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ['claude/**']
+    paths: ['.github/workflows/voice-trial-eleven.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  eleven:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
+      VOICE_ID: 2o2uQnlGaNuV3ObRpxXt
+      MODEL_ID: eleven_v4
+    steps:
+      - uses: actions/checkout@v4
+      - name: ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Згенерувати
+        run: |
+          mkdir -p voice-trial
+          python3 - <<'EOF'
+          import json, os, subprocess, time, urllib.request, urllib.error
+          key, voice, model = os.environ['ELEVENLABS_API_KEY'], os.environ['VOICE_ID'], os.environ['MODEL_ID']
+          if not key:
+              raise SystemExit('Немає секрету ELEVENLABS_API_KEY')
+          url = f'https://api.elevenlabs.io/v1/text-to-speech/{voice}?output_format=mp3_44100_128'
+
+          def tts(text, out):
+              body = json.dumps({'text': text, 'model_id': model}).encode()
+              req = urllib.request.Request(url, data=body, method='POST',
+                                           headers={'xi-api-key': key, 'Content-Type': 'application/json', 'Accept': 'audio/mpeg'})
+              s = time.time()
+              try:
+                  data = urllib.request.urlopen(req, timeout=120).read()
+              except urllib.error.HTTPError as e:
+                  raise SystemExit(f'HTTP {e.code}: {e.read().decode(errors="replace")[:500]}')
+              open(out, 'wb').write(data)
+              print(f'{out}: {time.time() - s:.1f} s, {len(text)} симв. — {text}', flush=True)
+
+          # Цілі фрази
+          whole = ['Тепер ти! Постав довгу стрілку на шість. Це пів кола.',
+                   'О третій сорок п’ять до четвертої лишилась чверть. Тому кажуть: за чверть четверта.']
+          # Ті самі фрази шматками — так їх складає гра (src/core/speech.ts → speechPlan)
+          pieces = [['Тепер ти!', 'Постав довгу стрілку', 'на шість', 'Це пів кола.'],
+                    ['о третій', 'сорок п’ять', 'до четвертої лишилась чверть.', 'Тому кажуть', 'за чверть четверта']]
+          for i, t in enumerate(whole, 1):
+              tts(t, f'voice-trial/eleven_{i}_whole.mp3')
+          for i, parts in enumerate(pieces, 1):
+              files = []
+              for j, p in enumerate(parts):
+                  f = f'/tmp/e{i}_{j}.mp3'; tts(p, f); files.append(f)
+              # склеїти з короткими паузами, як у грі
+              inputs = sum((['-i', f] for f in files), [])
+              n = len(files)
+              filt = ''.join(f'[{k}:a]apad=pad_dur=0.08[a{k}];' for k in range(n)) + ''.join(f'[a{k}]' for k in range(n)) + f'concat=n={n}:v=0:a=1[out]'
+              subprocess.run(['ffmpeg', '-loglevel', 'error', '-y', *inputs, '-filter_complex', filt, '-map', '[out]',
+                              '-ac', '1', '-b:a', '128k', f'voice-trial/eleven_{i}_pieces.mp3'], check=True)
+          EOF
+          ls -la voice-trial
+      - name: Закомітити
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add voice-trial
+          git commit -m 'Проба озвучки: ElevenLabs v4' || exit 0
+          git pull --rebase -q origin "$GITHUB_REF_NAME"
+          git push origin "HEAD:$GITHUB_REF_NAME"
