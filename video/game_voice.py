@@ -58,6 +58,11 @@ def main() -> None:
     chunks = json.loads((VOICE / 'chunks.json').read_text('utf-8'))
     wanted = {c['key']: c['text'] for c in chunks}
 
+    manifest = VOICE / 'manifest.json'
+    if manifest.exists() and json.loads(manifest.read_text('utf-8')).get('voice') == 'Tik':
+        print('Гра вже говорить голосом Тіка (ElevenLabs) — Лада не потрібна; див. video/eleven_voice.py')
+        return
+
     if a.manifest_only:
         clips = {k: file_for(k) for k in wanted if (VOICE / file_for(k)).exists()}
         keep = set(clips.values())

@@ -274,6 +274,7 @@ export function openReport(onReset: () => void): void {
   toggle('Читати варіанти відповідей уголос', p.settings.readOptions, v => { p.settings.readOptions = v; app.save(); },
     !Voice.available(), 'Для дітей, які ще не читають. Біля словесних варіантів завжди є кнопка 🔊.');
   body.append(settings);
+  if (Voice.name() === 'Tik') body.append(h('p', { class: 'r-note', text: '🎙️ Голос Тіка створено в ElevenLabs (elevenlabs.io).' }));
 
   // Резервна копія: прогрес живе лише в цьому браузері — його можна зберегти й перенести
   body.append(h('h3', { text: '💾 Резервна копія' }),
