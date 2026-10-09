@@ -15,6 +15,7 @@ const synth: SpeechSynthesis | null = typeof window !== 'undefined' && 'speechSy
 
 let webVoice: SpeechSynthesisVoice | null = null;
 let clips: Record<string, string> | null = null;
+let voiceName = '';
 let base = '/voice/';
 const listeners: Listener[] = [];
 const available = (): boolean => !!clips || !!webVoice;
@@ -130,11 +131,14 @@ export const Voice = {
     base = url.endsWith('/') ? url : url + '/';
     fetch(base + 'manifest.json')
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
-      .then((m: { clips?: Record<string, string> }) => {
-        if (m.clips && Object.keys(m.clips).length) { clips = m.clips; notify(); }
+      .then((m: { voice?: string; clips?: Record<string, string> }) => {
+        if (m.clips && Object.keys(m.clips).length) { clips = m.clips; voiceName = m.voice || ''; notify(); }
       })
       .catch(() => {});
   },
+
+  /** Чий голос у записах: 'Lada' (ukrainian-tts) або 'Tik' (ElevenLabs). */
+  name(): string { return voiceName; },
 
   /** interrupt=false — стати в чергу, не обриваючи попередню фразу. */
   speak(text: string, interrupt = true): void {
