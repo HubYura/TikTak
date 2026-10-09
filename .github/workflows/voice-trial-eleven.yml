@@ -18,7 +18,7 @@ jobs:
     timeout-minutes: 15
     env:
       ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
-      VOICE_ID: 2o2uQnlGaNuV3ObRpxXt
+      VOICE_ID: st1SBWBNgcxYTHgNG66W   # «Тік — ЧасоПарк», створений через Voice Design
       MODEL_ID: eleven_v4
     steps:
       - uses: actions/checkout@v4
